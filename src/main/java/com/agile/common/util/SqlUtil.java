@@ -210,7 +210,8 @@ public class SqlUtil {
     private static SQLExpr parsingWhereConstant(SQLExpr sqlExpr) {
         String where = SQLUtils.toSQLString(sqlExpr);
         where = where.replaceAll(CONSTANT_CONDITION_REGEX, "").trim();
-        if (where.trim().length() == 1 || CONSTANT_CONDITION.equals(where)) {
+        final int minSize = 3;
+        if (where.trim().length() < minSize || CONSTANT_CONDITION.equals(where)) {
             return null;
         }
         sqlExpr = SQLUtils.toSQLExpr(where);
