@@ -47,7 +47,7 @@ public class Param {
     public static final String FORMAT1 = "'%s'";
     public static final String DELIMITER = ",";
     public static final String REGEX = "[\\,]+(?=[^\\)]*(\\(|$))";
-    public static final String SQL_ILLEGAL = "\\b(and|exec|insert|select|drop|grant|alter|delete|update|count|chr|mid|master|truncate|char|declare|or)";
+    public static final String SQL_ILLEGAL = "\\b(and|exec|insert|select|drop|grant|alter|delete|update|count|chr|mid|master|truncate|char|declare|or)\\s";
     public static final int INITIAL_CAPACITY = 16;
     private static ThreadLocal<Map<String, Object>> threadLocal = new ThreadLocal<>();
     private static final String PARAM_START = "@_START_";
