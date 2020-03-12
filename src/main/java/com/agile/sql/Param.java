@@ -17,6 +17,7 @@ import com.alibaba.druid.sql.ast.statement.SQLSelectQueryBlock;
 import com.alibaba.druid.sql.ast.statement.SQLUpdateSetItem;
 import com.alibaba.druid.sql.ast.statement.SQLUpdateStatement;
 import com.alibaba.druid.sql.parser.ParserException;
+import com.sun.istack.internal.Nullable;
 
 import java.lang.reflect.Array;
 import java.util.ArrayList;
@@ -24,6 +25,7 @@ import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.function.Function;
 import java.util.regex.Matcher;
@@ -98,13 +100,53 @@ public class Param {
 
         params.entrySet()
                 .stream()
-                .filter(entry -> entry.getValue() != null && entry.getValue().toString().trim().length() > 0)
+                .filter(entry -> !isEmpty(entry.getValue()))
                 .forEach(entry -> {
                     Param param = new Param(entry);
                     map.put(entry.getKey(), param.getPlaceHolder());
                 });
 
         return map;
+    }
+
+    /**
+     * 判空，包括空白字符串
+     *
+     * @param obj
+     * @return
+     */
+    public static boolean isEmpty(@Nullable Object obj) {
+        if (obj == null) {
+            return true;
+        }
+
+        if (obj instanceof Optional) {
+            return !((Optional) obj).isPresent();
+        }
+        if (obj instanceof CharSequence) {
+            int strLen;
+            if ((strLen = ((CharSequence) obj).length()) == 0) {
+                return true;
+            }
+            for (int i = 0; i < strLen; i++) {
+                if (!Character.isWhitespace(((CharSequence) obj).charAt(i))) {
+                    return false;
+                }
+            }
+            return true;
+        }
+        if (obj.getClass().isArray()) {
+            return Array.getLength(obj) == 0;
+        }
+        if (obj instanceof Collection) {
+            return ((Collection) obj).isEmpty();
+        }
+        if (obj instanceof Map) {
+            return ((Map) obj).isEmpty();
+        }
+
+        // else
+        return false;
     }
 
     /**
