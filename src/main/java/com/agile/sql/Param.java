@@ -17,8 +17,6 @@ import com.alibaba.druid.sql.ast.statement.SQLSelectQueryBlock;
 import com.alibaba.druid.sql.ast.statement.SQLUpdateSetItem;
 import com.alibaba.druid.sql.ast.statement.SQLUpdateStatement;
 import com.alibaba.druid.sql.parser.ParserException;
-import com.sun.istack.internal.Nullable;
-
 import java.lang.reflect.Array;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -112,10 +110,10 @@ public class Param {
     /**
      * 判空，包括空白字符串
      *
-     * @param obj
-     * @return
+     * @param obj 判断对象
+     * @return true是空的 false不是空的
      */
-    public static boolean isEmpty(@Nullable Object obj) {
+    public static boolean isEmpty(Object obj) {
         if (obj == null) {
             return true;
         }
@@ -124,8 +122,8 @@ public class Param {
             return !((Optional) obj).isPresent();
         }
         if (obj instanceof CharSequence) {
-            int strLen;
-            if ((strLen = ((CharSequence) obj).length()) == 0) {
+            int strLen = ((CharSequence) obj).length();
+            if (strLen == 0) {
                 return true;
             }
             for (int i = 0; i < strLen; i++) {
