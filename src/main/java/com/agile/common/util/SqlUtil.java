@@ -73,7 +73,7 @@ public class SqlUtil {
         return parserCountSQL(sql, null);
     }
 
-    public static String parserSQL(String sql, Map<String, Object> parameters) {
+    public static String parserSQL(String sql, Object parameters) {
         sql = Param.parsingSqlString(sql, Param.parsingParam(parameters));
         return parserSQL(sql);
     }
@@ -464,5 +464,13 @@ public class SqlUtil {
 //        map.put("endTime", "22222222");
 //
 //        parserSQL(sql, map);
+//    }
+
+//    public static void main(String[] args) {
+//        HashMap<String, Object> map = Maps.newHashMap();
+//        map.put("d","d");
+//        map.put("c",Demo.builder().a("a").b("b").build());
+//
+//        String sql = "select * from dual where a = '{a}' and b = '{b}' and d = '{d}'";
 //    }
 }

@@ -1,5 +1,6 @@
 package com.agile.sql;
 
+import com.agile.common.util.json.JSONUtil;
 import com.alibaba.druid.sql.SQLUtils;
 import com.alibaba.druid.sql.ast.SQLExpr;
 import com.alibaba.druid.sql.ast.SQLObject;
@@ -17,13 +18,13 @@ import com.alibaba.druid.sql.ast.statement.SQLSelectQueryBlock;
 import com.alibaba.druid.sql.ast.statement.SQLUpdateSetItem;
 import com.alibaba.druid.sql.ast.statement.SQLUpdateStatement;
 import com.alibaba.druid.sql.parser.ParserException;
+
 import java.lang.reflect.Array;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 import java.util.Set;
 import java.util.function.Function;
 import java.util.regex.Matcher;
@@ -54,21 +55,17 @@ public class Param {
     private static final String PARAM_END = "_END_";
     private static final String NOT_FOUND_PARAM = "@NOT_FOUND_PARAM_";
     private static final String REPLACE_NULL_CONDITION = " 1=1 ";
-    private String placeHolder;
-    private String key;
-    private Object value;
+    private final String placeHolder;
 
     public String getPlaceHolder() {
         return placeHolder;
     }
 
-    public Param(Map.Entry<String, Object> entry) {
-        if (isIllegal(entry.getValue().toString())) {
+    public Param(String key, Object value) {
+        if (isIllegal(value.toString())) {
             throw new ParserException();
         }
-        this.placeHolder = PARAM_START + entry.getKey() + PARAM_END;
-        this.key = entry.getKey();
-        this.value = entry.getValue();
+        this.placeHolder = PARAM_START + key + PARAM_END;
         threadLocal.get().put(placeHolder, value);
     }
 
@@ -88,64 +85,16 @@ public class Param {
      *
      * @param params 参数集合
      */
-    public static Map<String, Object> parsingParam(Map<String, Object> params) {
+    public static Object parsingParam(Object params) {
         threadLocal.remove();
         threadLocal.set(new HashMap<>(INITIAL_CAPACITY));
         if (params == null) {
             return null;
         }
-        Map<String, Object> map = new HashMap<>(params.size());
 
-        params.entrySet()
-                .stream()
-                .filter(entry -> !isEmpty(entry.getValue()))
-                .forEach(entry -> {
-                    Param param = new Param(entry);
-                    map.put(entry.getKey(), param.getPlaceHolder());
-                });
-
-        return map;
+        return JSONUtil.toMapOrList(params);
     }
 
-    /**
-     * 判空，包括空白字符串
-     *
-     * @param obj 判断对象
-     * @return true是空的 false不是空的
-     */
-    public static boolean isEmpty(Object obj) {
-        if (obj == null) {
-            return true;
-        }
-
-        if (obj instanceof Optional) {
-            return !((Optional) obj).isPresent();
-        }
-        if (obj instanceof CharSequence) {
-            int strLen = ((CharSequence) obj).length();
-            if (strLen == 0) {
-                return true;
-            }
-            for (int i = 0; i < strLen; i++) {
-                if (!Character.isWhitespace(((CharSequence) obj).charAt(i))) {
-                    return false;
-                }
-            }
-            return true;
-        }
-        if (obj.getClass().isArray()) {
-            return Array.getLength(obj) == 0;
-        }
-        if (obj instanceof Collection) {
-            return ((Collection) obj).isEmpty();
-        }
-        if (obj instanceof Map) {
-            return ((Map) obj).isEmpty();
-        }
-
-        // else
-        return false;
-    }
 
     /**
      * 处理参数占位
@@ -154,12 +103,12 @@ public class Param {
      * @param params 参数集合
      * @return 处理过的sql
      */
-    public static String parsingSqlString(String sql, Map<String, Object> params) {
+    public static String parsingSqlString(String sql, Object params) {
         return parsingPlaceholder("{", "}", ":", sql, params, NOT_FOUND_PARAM);
     }
 
-    private static String parsingPlaceholder(String openToken, String closeToken, String equalToken, String text, Map args, String replaceNull) {
-        if (args == null || args.size() <= 0) {
+    private static String parsingPlaceholder(String openToken, String closeToken, String equalToken, String text, Object args, String replaceNull) {
+        if (args == null) {
             if (replaceNull != null) {
                 args = new HashMap(0);
             } else {
@@ -215,26 +164,33 @@ public class Param {
                     String[] keyObj = key.split(equalToken);
                     Object o;
                     String value;
-                    //判断是否有配置了默认值(:-)  by nhApis 2018.12.27
+                    Param param = null;
+                    //判断是否有配置了默认值(:-)
                     if (keyObj.length > 0) {
-                        //配置了默认值,使用key获取当前环境变量中是否已经配置  by nhApis 2018.12.27
-                        o = args.get(keyObj[0]);
+                        //配置了默认值,使用key获取当前环境变量中是否已经配置
+                        o = JSONUtil.pathGet(keyObj[0], args);
+                        if (o != null) {
+                            param = new Param(keyObj[0], o);
+                        }
                     } else {
-                        o = args.get(key);
+                        o = JSONUtil.pathGet(key, args);
+                        if (o != null) {
+                            param = new Param(key, o);
+                        }
                     }
 
                     if (o == null) {
                         if (key.contains(equalToken)) {
-                            //获取不到使用默认值   by nhApis 2018.12.24
+                            //获取不到使用默认值
                             value = keyObj[1].trim();
                         } else if (replaceNull != null) {
-                            //获取不到环境变量时,返回原表达式 by nhApis 2018.12.24
+                            //获取不到环境变量时,返回原表达式
                             value = replaceNull;
                         } else {
                             value = openToken + key + closeToken;
                         }
                     } else {
-                        value = String.valueOf(o);
+                        value = param.getPlaceHolder();
                     }
                     builder.append(value);
                     offset = end + closeToken.length();

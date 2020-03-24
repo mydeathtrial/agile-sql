@@ -6,7 +6,7 @@
 
     <groupId>com.agileframework</groupId>
     <artifactId>agile-sql</artifactId>
-    <version>1.0.3</version>
+    <version>1.0.4</version>
 
 
     <properties>
@@ -23,6 +23,11 @@
             <groupId>com.alibaba</groupId>
             <artifactId>druid</artifactId>
             <version>1.1.21</version>
+        </dependency>
+        <dependency>
+            <groupId>com.agileframework</groupId>
+            <artifactId>common-util</artifactId>
+            <version>LATEST</version>
         </dependency>
     </dependencies>
 
