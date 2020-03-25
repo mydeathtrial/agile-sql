@@ -36,6 +36,7 @@ import com.alibaba.druid.util.JdbcUtils;
 import java.util.ArrayList;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.Map;
 
 /**
  * 描述：
@@ -62,7 +63,7 @@ public class SqlUtil {
      * @param parameters map格式的sql语句中的参数集合，使用{paramName}方式占位
      * @return 生成的sql结果
      */
-    public static String parserCountSQL(String sql, Object parameters) {
+    public static String parserCountSQL(String sql, Map<String, Object> parameters) {
         sql = parserSQL(sql, parameters);
 
         return String.format("select count(1) from (%s) _select_table", sql);
@@ -467,9 +468,10 @@ public class SqlUtil {
 
 //    public static void main(String[] args) {
 //        HashMap<String, Object> map = Maps.newHashMap();
-//        map.put("d","d");
+//        map.put("d"," ");
+//        map.put("e",new String[]{});
 //        map.put("c",Demo.builder().a("a").b("b").build());
 //
-//        String sql = "select * from dual where a = '{a}' and b = '{b}' and d = '{d}'";
+//        String sql = "select * from dual where a = '{a}' and b = '{b}' and d = '{d}' and e in ({e})";
 //    }
 }

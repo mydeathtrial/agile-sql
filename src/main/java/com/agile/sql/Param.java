@@ -25,6 +25,7 @@ import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.function.Function;
 import java.util.regex.Matcher;
@@ -93,6 +94,46 @@ public class Param {
         }
 
         return JSONUtil.toMapOrList(params);
+    }
+
+    /**
+     * 判空，包括空白字符串
+     *
+     * @param obj 判断对象
+     * @return true是空的 false不是空的
+     */
+    public static boolean isEmpty(Object obj) {
+        if (obj == null) {
+            return true;
+        }
+
+        if (obj instanceof Optional) {
+            return !((Optional) obj).isPresent();
+        }
+        if (obj instanceof CharSequence) {
+            int strLen = ((CharSequence) obj).length();
+            if (strLen == 0) {
+                return true;
+            }
+            for (int i = 0; i < strLen; i++) {
+                if (!Character.isWhitespace(((CharSequence) obj).charAt(i))) {
+                    return false;
+                }
+            }
+            return true;
+        }
+        if (obj.getClass().isArray()) {
+            return Array.getLength(obj) == 0;
+        }
+        if (obj instanceof Collection) {
+            return ((Collection) obj).isEmpty();
+        }
+        if (obj instanceof Map) {
+            return ((Map) obj).isEmpty();
+        }
+
+        // else
+        return false;
     }
 
 
@@ -164,22 +205,22 @@ public class Param {
                     String[] keyObj = key.split(equalToken);
                     Object o;
                     String value;
-                    Param param = null;
+                    String replaceKey = null;
                     //判断是否有配置了默认值(:-)
                     if (keyObj.length > 0) {
                         //配置了默认值,使用key获取当前环境变量中是否已经配置
                         o = JSONUtil.pathGet(keyObj[0], args);
                         if (o != null) {
-                            param = new Param(keyObj[0], o);
+                            replaceKey = keyObj[0];
                         }
                     } else {
                         o = JSONUtil.pathGet(key, args);
                         if (o != null) {
-                            param = new Param(key, o);
+                            replaceKey = key;
                         }
                     }
 
-                    if (o == null) {
+                    if (o == null || isEmpty(o) || replaceKey == null) {
                         if (key.contains(equalToken)) {
                             //获取不到使用默认值
                             value = keyObj[1].trim();
@@ -190,6 +231,7 @@ public class Param {
                             value = openToken + key + closeToken;
                         }
                     } else {
+                        Param param = new Param(replaceKey, o);
                         value = param.getPlaceHolder();
                     }
                     builder.append(value);
