@@ -32,11 +32,13 @@ import com.alibaba.druid.sql.dialect.mysql.visitor.MySqlSchemaStatVisitor;
 import com.alibaba.druid.sql.parser.SQLParserUtils;
 import com.alibaba.druid.sql.parser.SQLStatementParser;
 import com.alibaba.druid.util.JdbcUtils;
+import com.google.common.collect.Lists;
+import com.google.common.collect.Maps;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
-import java.util.Map;
 
 /**
  * 描述：
@@ -63,7 +65,7 @@ public class SqlUtil {
      * @param parameters map格式的sql语句中的参数集合，使用{paramName}方式占位
      * @return 生成的sql结果
      */
-    public static String parserCountSQL(String sql, Map<String, Object> parameters) {
+    public static String parserCountSQL(String sql, Object parameters) {
         sql = parserSQL(sql, parameters);
 
         return String.format("select count(1) from (%s) _select_table", sql);
@@ -470,8 +472,9 @@ public class SqlUtil {
 //        HashMap<String, Object> map = Maps.newHashMap();
 //        map.put("d"," ");
 //        map.put("e",new String[]{});
-//        map.put("c",Demo.builder().a("a").b("b").build());
+//        map.put("c",Demo.builder().a("a").b("b").c(Lists.newArrayList("c","ss")).build());
 //
-//        String sql = "select * from dual where a = '{a}' and b = '{b}' and d = '{d}' and e in ({e})";
+//        String sql = "select * from dual where a = '{c.a}' and b = '{c.b}' and b in ({c.c}) and d = '{d}' and e in ({e})";
+//        System.out.println(parserSQL(sql,map));
 //    }
 }

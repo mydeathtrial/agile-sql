@@ -1,6 +1,7 @@
 package com.agile.sql;
 
 import com.agile.common.util.json.JSONUtil;
+import com.agile.common.util.string.StringUtil;
 import com.alibaba.druid.sql.SQLUtils;
 import com.alibaba.druid.sql.ast.SQLExpr;
 import com.alibaba.druid.sql.ast.SQLObject;
@@ -126,7 +127,8 @@ public class Param {
             return Array.getLength(obj) == 0;
         }
         if (obj instanceof Collection) {
-            return ((Collection) obj).isEmpty();
+            Object set = ((Collection) obj).stream().filter(node -> !StringUtil.isEmpty(String.valueOf(node))).collect(Collectors.toSet());
+            return ((Collection) set).isEmpty();
         }
         if (obj instanceof Map) {
             return ((Map) obj).isEmpty();
