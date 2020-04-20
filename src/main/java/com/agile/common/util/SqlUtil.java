@@ -12,7 +12,6 @@ import com.alibaba.druid.sql.ast.expr.SQLInListExpr;
 import com.alibaba.druid.sql.ast.expr.SQLInSubQueryExpr;
 import com.alibaba.druid.sql.ast.expr.SQLMethodInvokeExpr;
 import com.alibaba.druid.sql.ast.expr.SQLPropertyExpr;
-import com.alibaba.druid.sql.ast.expr.SQLQueryExpr;
 import com.alibaba.druid.sql.ast.statement.SQLDeleteStatement;
 import com.alibaba.druid.sql.ast.statement.SQLExprTableSource;
 import com.alibaba.druid.sql.ast.statement.SQLInsertStatement;
@@ -32,11 +31,8 @@ import com.alibaba.druid.sql.dialect.mysql.visitor.MySqlSchemaStatVisitor;
 import com.alibaba.druid.sql.parser.SQLParserUtils;
 import com.alibaba.druid.sql.parser.SQLStatementParser;
 import com.alibaba.druid.util.JdbcUtils;
-import com.google.common.collect.Lists;
-import com.google.common.collect.Maps;
 
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
 
@@ -232,10 +228,7 @@ public class SqlUtil {
     private static void parsingTableSource(SQLTableSource from) {
         if (from instanceof SQLSubqueryTableSource) {
             SQLSelect childSelect = ((SQLSubqueryTableSource) from).getSelect();
-            String sql = parserSQL(childSelect.toString());
-
-            SQLSelect select = new SQLSelect(((SQLQueryExpr) SQLUtils.toSQLExpr(sql)).getSubQuery().getQueryBlock());
-            ((SQLSubqueryTableSource) from).setSelect(select);
+            parserQuery(childSelect.getQuery());
         } else if (from instanceof SQLJoinTableSource) {
             SQLTableSource left = ((SQLJoinTableSource) from).getLeft();
             parsingTableSource(left);
