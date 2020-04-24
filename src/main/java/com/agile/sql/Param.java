@@ -1,6 +1,7 @@
 package com.agile.sql;
 
 import com.agile.common.util.json.JSONUtil;
+import com.agile.common.util.object.ObjectUtil;
 import com.agile.common.util.string.StringUtil;
 import com.alibaba.druid.sql.SQLUtils;
 import com.alibaba.druid.sql.ast.SQLExpr;
@@ -430,6 +431,9 @@ public class Param {
             return;
         }
         List<SQLExpr> items = sqlExpr.getItems();
+        if (ObjectUtil.isEmpty(items)) {
+            return;
+        }
         items.removeIf(Param::unprocessed);
 
 
