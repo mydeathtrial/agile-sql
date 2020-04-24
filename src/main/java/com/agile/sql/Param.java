@@ -209,21 +209,21 @@ public class Param {
                     Object o;
                     String value;
                     String replaceKey = null;
-                    //判断是否有配置了默认值(:-)
+                    //判断是否有配置了默认值(:)
                     if (keyObj.length > 0) {
                         //配置了默认值,使用key获取当前环境变量中是否已经配置
-                        o = JSONUtil.pathGet(keyObj[0], args);
+                        o = JSONUtil.pathGet(keyObj[0].trim(), args);
                         if (o != null) {
-                            replaceKey = keyObj[0];
+                            replaceKey = keyObj[0].trim();
                         }
                     } else {
-                        o = JSONUtil.pathGet(key, args);
+                        o = JSONUtil.pathGet(key.trim(), args);
                         if (o != null) {
-                            replaceKey = key;
+                            replaceKey = key.trim();
                         }
                     }
 
-                    if (o == null || isEmpty(o) || replaceKey == null) {
+                    if (o == null || isEmpty(o)) {
                         if (key.contains(equalToken)) {
                             //获取不到使用默认值
                             value = keyObj[1].trim();
