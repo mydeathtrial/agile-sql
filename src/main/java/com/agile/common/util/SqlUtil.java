@@ -94,40 +94,31 @@ public class SqlUtil {
         MySqlSchemaStatVisitor visitor = new MySqlSchemaStatVisitor();
         statement.accept(visitor);
 
-        if (statement instanceof SQLSelectStatement) {
-            parserSelect((SQLSelectStatement) statement);
-        } else if (statement instanceof SQLUpdateStatement) {
-            parserUpdate((SQLUpdateStatement) statement);
-        } else if (statement instanceof SQLDeleteStatement) {
-            parserDelete((SQLDeleteStatement) statement);
-        } else if (statement instanceof SQLInsertStatement) {
-            parserInsert((SQLInsertStatement) statement);
-        }
+        parsingPart(statement);
 
         return statement.toString();
     }
 
     private static void parserInsert(SQLInsertStatement statement) {
-        SQLExprTableSource tableSource = statement.getTableSource();
-        parsingTableSource(tableSource);
+        parsingTableSource(statement.getTableSource());
 
         Param.parsingSQLInsertStatement(statement);
     }
 
     private static void parserDelete(SQLDeleteStatement statement) {
-        SQLTableSource from = statement.getFrom();
-        parsingTableSource(from);
+        parsingTableSource(statement.getTableSource());
+        parsingTableSource(statement.getFrom());
 
-        parsingWhere(statement);
+        parsingWhere(statement.getWhere());
     }
 
     private static void parserUpdate(SQLUpdateStatement statement) {
         Param.parsingSQLUpdateStatement(statement);
 
-        SQLTableSource from = statement.getFrom();
-        parsingTableSource(from);
+        parsingTableSource(statement.getTableSource());
+        parsingTableSource(statement.getFrom());
 
-        parsingWhere(statement);
+        parsingWhere(statement.getWhere());
 
         SQLOrderBy order = statement.getOrderBy();
         Param.parsingSQLOrderBy(order);
@@ -139,8 +130,12 @@ public class SqlUtil {
      * @param statement 查询statement
      */
     private static void parserSelect(SQLSelectStatement statement) {
-        SQLSelectQuery query = statement.getSelect().getQuery();
-        parserQuery(query);
+        SQLSelect sqlSelect = statement.getSelect();
+        parserSQLSelect(sqlSelect);
+    }
+
+    private static void parserSQLSelect(SQLSelect sqlSelect) {
+        parserQuery(sqlSelect.getQuery());
     }
 
     private static void parserQuery(SQLSelectQuery query) {
@@ -151,11 +146,11 @@ public class SqlUtil {
             SQLTableSource from = sqlSelectQueryBlock.getFrom();
             parsingTableSource(from);
 
-            parsingWhere(sqlSelectQueryBlock);
+            parsingWhere(sqlSelectQueryBlock.getWhere());
 
             SQLSelectGroupByClause groupBy = sqlSelectQueryBlock.getGroupBy();
             if (groupBy != null) {
-                parserSQLObject(groupBy);
+                Param.parsingSQLSelectGroupByClause(groupBy);
             }
 
             SQLOrderBy order = sqlSelectQueryBlock.getOrderBy();
@@ -171,41 +166,27 @@ public class SqlUtil {
     /**
      * 处理where条件
      *
-     * @param expr where的父级表达式
-     * @param <T>  泛型
+     * @param where where的表达式
+     * @param <T>   泛型
      */
-    private static <T> void parsingWhere(T expr) {
-        SQLExpr where = null;
-        if (expr instanceof SQLSelectQueryBlock) {
-            where = ((SQLSelectQueryBlock) expr).getWhere();
-        } else if (expr instanceof SQLUpdateStatement) {
-            where = ((SQLUpdateStatement) expr).getWhere();
-        } else if (expr instanceof SQLDeleteStatement) {
-            where = ((SQLDeleteStatement) expr).getWhere();
-        }
+    private static <T extends SQLExpr> void parsingWhere(T where) {
         if (where == null) {
             return;
         }
         parserSQLObject(where);
 
+        SQLExpr newWhere = parsingWhereConstant(where);
         SQLObject parent = where.getParent();
-
-        if (expr instanceof SQLSelectQueryBlock) {
-            where = ((SQLSelectQueryBlock) parent).getWhere();
-            SQLExpr newWhere = parsingWhereConstant(where);
-            ((SQLSelectQueryBlock) expr).setWhere(newWhere);
-        } else if (expr instanceof SQLUpdateStatement) {
-            where = ((SQLUpdateStatement) parent).getWhere();
-            SQLExpr newWhere = parsingWhereConstant(where);
-            ((SQLUpdateStatement) expr).setWhere(newWhere);
-        } else {
-            where = ((SQLDeleteStatement) parent).getWhere();
-            SQLExpr newWhere = parsingWhereConstant(where);
-            ((SQLDeleteStatement) expr).setWhere(newWhere);
+        if (parent instanceof SQLSelectQueryBlock) {
+            ((SQLSelectQueryBlock) parent).setWhere(newWhere);
+        } else if (parent instanceof SQLUpdateStatement) {
+            ((SQLUpdateStatement) parent).setWhere(newWhere);
+        } else if (parent instanceof SQLDeleteStatement) {
+            ((SQLDeleteStatement) parent).setWhere(newWhere);
         }
     }
 
-    private static SQLExpr parsingWhereConstant(SQLExpr sqlExpr) {
+    public static SQLExpr parsingWhereConstant(SQLExpr sqlExpr) {
         String where = SQLUtils.toSQLString(sqlExpr);
         where = where.replaceAll(CONSTANT_CONDITION_REGEX, "").trim();
         final int minSize = 3;
@@ -228,13 +209,20 @@ public class SqlUtil {
     private static void parsingTableSource(SQLTableSource from) {
         if (from instanceof SQLSubqueryTableSource) {
             SQLSelect childSelect = ((SQLSubqueryTableSource) from).getSelect();
-            parserQuery(childSelect.getQuery());
+            parserSQLSelect(childSelect);
         } else if (from instanceof SQLJoinTableSource) {
             SQLTableSource left = ((SQLJoinTableSource) from).getLeft();
             parsingTableSource(left);
 
             SQLTableSource right = ((SQLJoinTableSource) from).getRight();
             parsingTableSource(right);
+
+            SQLExpr condition = ((SQLJoinTableSource) from).getCondition();
+            if (condition != null) {
+                parserSQLObject(condition);
+                SQLExpr newCondition = parsingWhereConstant(condition);
+                ((SQLJoinTableSource) from).setCondition(newCondition);
+            }
         } else if (from instanceof SQLUnionQueryTableSource) {
             parserQuery(((SQLUnionQueryTableSource) from).getUnion());
         }
@@ -246,21 +234,24 @@ public class SqlUtil {
      * @param sqlObject sql druid对象
      */
     private static List<SQLObject> getMuchPart(SQLObject sqlObject) {
-        if (sqlObject == null) {
-            return null;
-        }
         List<SQLObject> result = new LinkedList<>();
+
+        if (sqlObject == null) {
+            return result;
+        }
         List<SQLObject> children = ((SQLExpr) sqlObject).getChildren();
-        if (children != null && children.size() > 0) {
+        if (children != null && !children.isEmpty()) {
             for (SQLObject child : children) {
                 if (child instanceof SQLExpr) {
                     List<SQLObject> grandson = ((SQLExpr) child).getChildren();
-                    if (grandson == null || grandson.size() == 0) {
+                    if (grandson == null || grandson.isEmpty()) {
                         result.add(sqlObject);
                         break;
                     } else {
                         result.addAll(getMuchPart(child));
                     }
+                } else {
+                    result.add(child);
                 }
             }
         } else {
@@ -274,49 +265,49 @@ public class SqlUtil {
      *
      * @param sqlObject sql druid对象
      */
-    private static void parserSQLObject(SQLObject sqlObject) {
+    public static void parserSQLObject(SQLExpr sqlObject) {
         if (sqlObject == null) {
             return;
         }
-        List<SQLObject> sqlPartInfo = null;
-        if (sqlObject instanceof SQLExpr) {
-            sqlPartInfo = getMuchPart(sqlObject);
-        } else if (sqlObject instanceof SQLSelectGroupByClause) {
-            SQLSelectGroupByClause proxy = ((SQLSelectGroupByClause) sqlObject);
-            Param.parsingSQLSelectGroupByClause(proxy);
-            sqlPartInfo = getMuchPart(proxy.getHaving());
-        }
-        if (sqlPartInfo == null) {
-            return;
-        }
+        List<SQLObject> sqlPartInfo = getMuchPart(sqlObject);
         for (SQLObject part : sqlPartInfo) {
             parsingPart(part);
-        }
-        if (sqlObject instanceof SQLSelectGroupByClause) {
-            SQLSelectGroupByClause proxy = ((SQLSelectGroupByClause) sqlObject);
-            SQLExpr having = proxy.getHaving();
-
-            SQLObject parent = having.getParent();
-            if (parent instanceof SQLSelectGroupByClause) {
-                having = parsingWhereConstant(((SQLSelectGroupByClause) parent).getHaving());
-                proxy.setHaving(having);
-            }
         }
     }
 
     private static void parsingPart(SQLObject part) {
         if (part instanceof SQLInListExpr) {
             Param.parsingSQLInListExpr((SQLInListExpr) part);
-        } else if (part instanceof SQLInSubQueryExpr) {
-            parsingInSubQuery((SQLInSubQueryExpr) part);
         } else if (part instanceof SQLBinaryOpExpr) {
             Param.parsingSQLBinaryOpExpr((SQLBinaryOpExpr) part);
-        } else if (part instanceof SQLPropertyExpr) {
-            parsingPart(part.getParent());
         } else if (part instanceof SQLMethodInvokeExpr) {
             Param.parsingMethodInvoke((SQLMethodInvokeExpr) part);
         } else if (part instanceof SQLBetweenExpr) {
             Param.parsingSQLBetweenExpr((SQLBetweenExpr) part);
+        } else if (part instanceof SQLOrderBy) {
+            Param.parsingSQLOrderBy((SQLOrderBy) part);
+        } else if (part instanceof SQLSelectGroupByClause) {
+            Param.parsingSQLSelectGroupByClause((SQLSelectGroupByClause) part);
+        } else if (part instanceof SQLSelectQueryBlock) {
+            Param.parsingSQLSelectItem((SQLSelectQueryBlock) part);
+        } else if (part instanceof SQLUpdateStatement) {
+            parserUpdate((SQLUpdateStatement) part);
+        } else if (part instanceof SQLInsertStatement) {
+            parserInsert((SQLInsertStatement) part);
+        } else if (part instanceof SQLDeleteStatement) {
+            parserDelete((SQLDeleteStatement) part);
+        } else if (part instanceof SQLSelectStatement) {
+            parserSelect((SQLSelectStatement) part);
+        } else if (part instanceof SQLInSubQueryExpr) {
+            parsingInSubQuery((SQLInSubQueryExpr) part);
+        } else if (part instanceof SQLPropertyExpr) {
+            parsingPart(part.getParent());
+        } else if (part instanceof SQLSelect) {
+            parserSQLSelect((SQLSelect) part);
+        } else if (part instanceof SQLSelectQuery) {
+            parserQuery((SQLSelectQuery) part);
+        } else if (part instanceof SQLTableSource) {
+            parsingTableSource((SQLTableSource) part);
         }
     }
 
@@ -388,17 +379,46 @@ public class SqlUtil {
     }
 
     private static String extractUpdateTableName(SQLUpdateStatement statement) {
-        return statement.getTableName().getSimpleName();
+        String tableName = parseSQLTableSource(statement.getFrom());
+        if (tableName == null) {
+            tableName = parseSQLTableSource(statement.getTableSource());
+        }
+        return tableName;
     }
 
     private static String extractDeleteTableName(SQLDeleteStatement statement) {
-        return statement.getTableName().getSimpleName();
+        String tableName = parseSQLTableSource(statement.getFrom());
+        if (tableName == null) {
+            tableName = parseSQLTableSource(statement.getTableSource());
+        }
+        return tableName;
     }
 
     private static String extractInsertTableName(SQLInsertStatement statement) {
-        return statement.getTableName().getSimpleName();
+        String tableName = statement.getTableName() == null ? null : statement.getTableName().getSimpleName();
+        if (tableName == null) {
+            tableName = parseSQLTableSource(statement.getTableSource());
+        }
+        return tableName;
     }
 
+    private static String getTableName(SQLUpdateStatement statement) {
+        String tableName = parseSQLTableSource(statement.getFrom());
+        if (tableName == null) {
+            tableName = parseSQLTableSource(statement.getTableSource());
+        }
+        return tableName;
+    }
+
+    private static String parseSQLTableSource(SQLTableSource sqlTableSource) {
+        if (sqlTableSource instanceof SQLJoinTableSource) {
+            return parseSQLTableSource(((SQLJoinTableSource) sqlTableSource).getLeft());
+        } else if (sqlTableSource instanceof SQLExprTableSource) {
+            return ((SQLExprTableSource) sqlTableSource).getName().getSimpleName();
+        } else {
+            return null;
+        }
+    }
 //    public static void main(String[] args) {
 //        String sql = "SELECT a,{column} as tt FROM tableA as ta LEFT JOIN (\n" +
 //                "SELECT d,e,f FROM tableB as tb where d = {d:d} and e like '%{e:e}' or f in ({f})\n" +

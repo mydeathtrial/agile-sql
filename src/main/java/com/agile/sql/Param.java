@@ -1,5 +1,6 @@
 package com.agile.sql;
 
+import com.agile.common.util.SqlUtil;
 import com.agile.common.util.json.JSONUtil;
 import com.agile.common.util.object.ObjectUtil;
 import com.agile.common.util.string.StringUtil;
@@ -312,7 +313,7 @@ public class Param {
         List<SQLUpdateSetItem> items = sqlUpdateStatement.getItems();
         items.removeIf(Param::unprocessed);
 
-        if (items.size() == 0) {
+        if (items.isEmpty()) {
             return;
         }
         items.forEach(node -> {
@@ -369,7 +370,7 @@ public class Param {
         List<SQLExpr> targetList = sqlExpr.getTargetList();
         targetList.removeIf(Param::unprocessed);
 
-        if (targetList.size() == 0) {
+        if (targetList.isEmpty()) {
             SQLUtils.replaceInParent(sqlExpr, SQLUtils.toSQLExpr(REPLACE_NULL_CONDITION));
             return;
         }
@@ -412,7 +413,7 @@ public class Param {
         List<SQLSelectOrderByItem> orders = sqlExpr.getItems();
         orders.removeIf(Param::unprocessed);
 
-        if (orders.size() == 0) {
+        if (orders.isEmpty()) {
             return;
         }
         String sql = orders.stream().map(SQLUtils::toSQLString).collect(Collectors.joining(DELIMITER));
@@ -431,21 +432,26 @@ public class Param {
             return;
         }
         List<SQLExpr> items = sqlExpr.getItems();
-        if (ObjectUtil.isEmpty(items)) {
-            return;
+        if (!ObjectUtil.isEmpty(items)) {
+            items.removeIf(Param::unprocessed);
+
+            String sql = items.stream().map(SQLUtils::toSQLString).collect(Collectors.joining(DELIMITER));
+            sql = parsingPlaceHolder(sql, value -> value);
+
+            List<SQLExpr> s = Stream.of(sql.split(REGEX))
+                    .map(SQLUtils::toSQLExpr)
+                    .collect(Collectors.toList());
+
+            items.clear();
+            items.addAll(s);
         }
-        items.removeIf(Param::unprocessed);
 
-
-        String sql = items.stream().map(SQLUtils::toSQLString).collect(Collectors.joining(DELIMITER));
-        sql = parsingPlaceHolder(sql, value -> value);
-
-        List<SQLExpr> s = Stream.of(sql.split(REGEX))
-                .map(SQLUtils::toSQLExpr)
-                .collect(Collectors.toList());
-
-        items.clear();
-        items.addAll(s);
+        SQLExpr having = sqlExpr.getHaving();
+        if (having != null) {
+            SqlUtil.parserSQLObject(having);
+            SQLExpr newHaving = SqlUtil.parsingWhereConstant(having);
+            sqlExpr.setHaving(newHaving);
+        }
     }
 
 

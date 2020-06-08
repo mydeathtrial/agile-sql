@@ -6,8 +6,14 @@
 
     <groupId>com.agileframework</groupId>
     <artifactId>agile-sql</artifactId>
-    <version>1.0.12</version>
+    <version>1.0.13</version>
 
+    <repositories>
+        <repository>
+            <id>privateMaven</id>
+            <url>http://10.10.10.9:8081/nexus/content/groups/public/</url>
+        </repository>
+    </repositories>
 
     <properties>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
