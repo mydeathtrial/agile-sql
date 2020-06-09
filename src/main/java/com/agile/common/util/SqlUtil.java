@@ -175,14 +175,21 @@ public class SqlUtil {
         }
         parserSQLObject(where);
 
-        SQLExpr newWhere = parsingWhereConstant(where);
         SQLObject parent = where.getParent();
+
+        SQLExpr newWhere;
         if (parent instanceof SQLSelectQueryBlock) {
-            ((SQLSelectQueryBlock) parent).setWhere(newWhere);
+            newWhere = ((SQLSelectQueryBlock) parent).getWhere();
+            SQLExpr newParseWhere = parsingWhereConstant(newWhere);
+            ((SQLSelectQueryBlock) parent).setWhere(newParseWhere);
         } else if (parent instanceof SQLUpdateStatement) {
-            ((SQLUpdateStatement) parent).setWhere(newWhere);
-        } else if (parent instanceof SQLDeleteStatement) {
-            ((SQLDeleteStatement) parent).setWhere(newWhere);
+            newWhere = ((SQLUpdateStatement) parent).getWhere();
+            SQLExpr newParseWhere = parsingWhereConstant(newWhere);
+            ((SQLUpdateStatement) parent).setWhere(newParseWhere);
+        } else {
+            newWhere = ((SQLDeleteStatement) parent).getWhere();
+            SQLExpr newParseWhere = parsingWhereConstant(newWhere);
+            ((SQLDeleteStatement) parent).setWhere(newParseWhere);
         }
     }
 
@@ -250,8 +257,6 @@ public class SqlUtil {
                     } else {
                         result.addAll(getMuchPart(child));
                     }
-                } else {
-                    result.add(child);
                 }
             }
         } else {
