@@ -52,9 +52,9 @@ public class Param {
     public static final String FORMAT1 = "'%s'";
     public static final String DELIMITER = ",";
     public static final String REGEX = "[\\,]+(?=[^\\)]*(\\(|$))";
-    public static final String SQL_ILLEGAL = "\\b(and|exec|insert|select|drop|grant|alter|delete|update|count|chr|mid|master|truncate|char|declare|or)\\s";
+    public static final String SQL_ILLEGAL = "\\b(sp_|xp_|exec|execute|like|create|group|order|by|having|where|from|union|and|exec|insert|select|drop|grant|alter|delete|update|count|chr|mid|master|truncate|char|declare|or|ifnull)\\b|([*;+'%])|(0x)";
     public static final int INITIAL_CAPACITY = 16;
-    private static ThreadLocal<Map<String, Object>> threadLocal = new ThreadLocal<>();
+    private static final ThreadLocal<Map<String, Object>> THREAD_LOCAL = new ThreadLocal<>();
     private static final String PARAM_START = "@_START_";
     private static final String PARAM_END = "_END_";
     private static final String NOT_FOUND_PARAM = "@NOT_FOUND_PARAM_";
@@ -70,7 +70,7 @@ public class Param {
             throw new ParserException();
         }
         this.placeHolder = PARAM_START + key + PARAM_END;
-        threadLocal.get().put(placeHolder, value);
+        THREAD_LOCAL.get().put(placeHolder, value);
     }
 
     /**
@@ -90,8 +90,8 @@ public class Param {
      * @param params 参数集合
      */
     public static Object parsingParam(Object params) {
-        threadLocal.remove();
-        threadLocal.set(new HashMap<>(INITIAL_CAPACITY));
+        THREAD_LOCAL.remove();
+        THREAD_LOCAL.set(new HashMap<>(INITIAL_CAPACITY));
         if (params == null) {
             return null;
         }
@@ -252,7 +252,7 @@ public class Param {
 
     private static String parsingPlaceHolder(String sql, Function<String, String> function) {
         String finalSql = sql;
-        Set<Map.Entry<String, Object>> set = threadLocal.get()
+        Set<Map.Entry<String, Object>> set = THREAD_LOCAL.get()
                 .entrySet()
                 .stream()
                 .filter(param -> finalSql.contains(param.getKey()))

@@ -424,6 +424,25 @@ public class SqlUtil {
             return null;
         }
     }
+
+//    public static void main(String[] args) {
+//        String s = "ax;13";
+//
+//        String sql = "select a.business_code AS 'businessCode', \" +\n" +
+//                "            \"sd.depart_name AS 'deptName', \" +\n" +
+//                "            \"a.business_name AS 'businessName', a.foura_flag AS 'fouraFlag', ad.datasource AS 'dataSource', \" +\n" +
+//                "            \"ad.describes AS 'describe' from asset_base a \" +\n" +
+//                "            \"left join asset_data_source ad on ad.asset_id = a.asset_id \" +\n" +
+//                "            \"left join sys_department sd on sd.sys_depart_id = a.dept_id  \" +\n" +
+//                "            \"where a.del_flag = 0 and ad.del_flag = 0 and a.dept_id in ({deptName}) \" +\n" +
+//                "            \"and a.asset_id in ({businessName}) and a.business_code LIKE '%{businessCode}%' and a.foura_flag = '{fouraFlag}' order by a.update_time desc ";
+//
+//        sql = "select asset_id as businessId,dept_id as departId,business_name as businessName,business_code as businessNumber from asset_base where del_flag = 0 and  dept_id in ({sysDepartIds})";
+//        Map<String,String> map = Maps.newHashMap();
+//        map.put("sysDepartIds",s);
+//
+//        System.out.println(parserSQL(sql,map));
+//    }
 //    public static void main(String[] args) {
 //        String sql = "SELECT a,{column} as tt FROM tableA as ta LEFT JOIN (\n" +
 //                "SELECT d,e,f FROM tableB as tb where d = {d:d} and e like '%{e:e}' or f in ({f})\n" +
