@@ -52,7 +52,7 @@ public class Param {
     public static final String FORMAT1 = "'%s'";
     public static final String DELIMITER = ",";
     public static final String REGEX = "[\\,]+(?=[^\\)]*(\\(|$))";
-    public static final String SQL_ILLEGAL = "\\b(sp_|xp_|exec|execute|like|create|group|order|by|having|where|from|union|and|exec|insert|select|drop|grant|alter|delete|update|count|chr|mid|master|truncate|char|declare|or|ifnull)\\b|([*;+'%])|(0x)";
+    public static final String SQL_ILLEGAL = "\\b(sp_|xp_|exec|execute|like|create|group|order|by|having|where|from|union|and|exec|insert|select|drop|grant|alter|delete|update|count|chr|mid|master|truncate|char|declare|or|ifnull|0[xX][\\da-fA-F]+)\\b|([*;+'%])";
     public static final int INITIAL_CAPACITY = 16;
     private static final ThreadLocal<Map<String, Object>> THREAD_LOCAL = new ThreadLocal<>();
     private static final String PARAM_START = "@_START_";
@@ -323,13 +323,13 @@ public class Param {
         });
         items.forEach(node -> {
             String value = SQLUtils.toSQLString(node.getValue());
-            if (!value.startsWith(PREFIX)) {
-                value = PREFIX + value;
-            }
-            if (!value.endsWith(PREFIX)) {
-                value = value + PREFIX;
-            }
-            String newValue = parsingPlaceHolder(value, v -> String.format(FORMAT, v).replace(PREFIX, REPLACEMENT));
+//            if (!value.startsWith(PREFIX)) {
+//                value = PREFIX + value;
+//            }
+//            if (!value.endsWith(PREFIX)) {
+//                value = value + PREFIX;
+//            }
+            String newValue = parsingPlaceHolder(value, v -> v);
             node.setValue(SQLUtils.toSQLExpr(newValue));
         });
     }
