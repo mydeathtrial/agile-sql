@@ -250,7 +250,7 @@ public class Param {
         return builder.toString();
     }
 
-    private static String parsingPlaceHolder(String sql, Function<String, String> function) {
+    private static String parsingPlaceHolder(String sql, Function<Object, String> function) {
         String finalSql = sql;
         Set<Map.Entry<String, Object>> set = THREAD_LOCAL.get()
                 .entrySet()
@@ -274,12 +274,12 @@ public class Param {
                 } else {
                     stream = ((Collection<Object>) value).stream();
                 }
-                replaceValue = stream.map(n -> function.apply(n.toString())).collect(Collectors.joining(DELIMITER));
+                replaceValue = stream.map(n -> function.apply(n)).collect(Collectors.joining(DELIMITER));
             } else {
                 if (isIllegal(value.toString())) {
                     throw new ParserException();
                 }
-                replaceValue = function.apply(value.toString());
+                replaceValue = function.apply(value);
 
             }
             sql = sql.replace(param.getKey(), replaceValue);
@@ -296,7 +296,7 @@ public class Param {
         sqlSelectItems.removeIf(Param::unprocessed);
 
         String sql = sqlSelectItems.stream().map(SQLUtils::toSQLString).collect(Collectors.joining(DELIMITER));
-        sql = parsingPlaceHolder(sql, value -> value);
+        sql = parsingPlaceHolder(sql, Object::toString);
 
         SQLExpr sqlExpr = SQLUtils.toSQLExpr("select " + sql + " from dual");
         if (sqlExpr instanceof SQLQueryExpr) {
@@ -318,18 +318,27 @@ public class Param {
         }
         items.forEach(node -> {
             SQLExpr column = node.getColumn();
-            String newColumn = parsingPlaceHolder(SQLUtils.toSQLString(column), value -> value);
+            String newColumn = parsingPlaceHolder(SQLUtils.toSQLString(column), Object::toString);
             node.setColumn(SQLUtils.toSQLExpr(newColumn));
         });
         items.forEach(node -> {
             String value = SQLUtils.toSQLString(node.getValue());
-//            if (!value.startsWith(PREFIX)) {
-//                value = PREFIX + value;
-//            }
-//            if (!value.endsWith(PREFIX)) {
-//                value = value + PREFIX;
-//            }
-            String newValue = parsingPlaceHolder(value, v -> v);
+
+            boolean prefix = !value.startsWith(PREFIX);
+            boolean suffix = !value.endsWith(PREFIX);
+            String newValue = parsingPlaceHolder(value, v -> {
+                String vStr = v.toString();
+                if(!(v instanceof Boolean)){
+                    if (prefix) {
+                        vStr = PREFIX + vStr;
+                    }
+                    if (suffix) {
+                        vStr = vStr + PREFIX;
+                    }
+                }
+                return vStr;
+            });
+
             node.setValue(SQLUtils.toSQLExpr(newValue));
         });
     }
@@ -347,18 +356,33 @@ public class Param {
 
         for (int i = 0; i < columns.size(); i++) {
             SQLExpr column = columns.get(i);
-            SQLExpr value = values.get(i);
-            if (unprocessed(column) || unprocessed(value)) {
+            SQLExpr valueSQLExpr = values.get(i);
+            if (unprocessed(column) || unprocessed(valueSQLExpr)) {
                 columns.remove(column);
-                values.remove(value);
+                values.remove(valueSQLExpr);
                 continue;
             }
-            String newColumn = parsingPlaceHolder(SQLUtils.toSQLString(column), v -> v);
+            String newColumn = parsingPlaceHolder(SQLUtils.toSQLString(column), Object::toString);
             columns.remove(column);
             columns.add(i, SQLUtils.toSQLExpr(newColumn));
 
-            String newValue = parsingPlaceHolder(SQLUtils.toSQLString(value), v -> v);
-            values.remove(value);
+            String value = SQLUtils.toSQLString(valueSQLExpr);
+            boolean prefix = !value.startsWith(PREFIX);
+            boolean suffix = !value.endsWith(PREFIX);
+            String newValue = parsingPlaceHolder(value, v -> {
+                String vStr = v.toString();
+                if(!(v instanceof Boolean)){
+                    if (prefix) {
+                        vStr = PREFIX + vStr;
+                    }
+                    if (suffix) {
+                        vStr = vStr + PREFIX;
+                    }
+                }
+                return vStr;
+            });
+
+            values.remove(valueSQLExpr);
             values.add(i, SQLUtils.toSQLExpr(newValue));
         }
     }
@@ -374,7 +398,7 @@ public class Param {
             SQLUtils.replaceInParent(sqlExpr, SQLUtils.toSQLExpr(REPLACE_NULL_CONDITION));
             return;
         }
-        String sql = parsingPlaceHolder(SQLUtils.toSQLString(sqlExpr), value -> String.format(FORMAT1, value));
+        String sql = parsingPlaceHolder(SQLUtils.toSQLString(sqlExpr), value -> String.format(FORMAT1, value.toString()));
         SQLExpr newSQLInListExpr = SQLUtils.toSQLExpr(sql);
 
         if (newSQLInListExpr instanceof SQLInListExpr) {
@@ -398,9 +422,9 @@ public class Param {
 //            if (!right.endsWith(PREFIX)) {
 //                right = right + PREFIX;
 //            }
-            String rightSql = parsingPlaceHolder(right, value -> String.format(FORMAT, value).replace(PREFIX, REPLACEMENT));
+            String rightSql = parsingPlaceHolder(right, value -> String.format(FORMAT, value.toString()).replace(PREFIX, REPLACEMENT));
             sqlExpr.setRight(SQLUtils.toSQLExpr(rightSql));
-            String sql = parsingPlaceHolder(SQLUtils.toSQLString(sqlExpr), value -> String.format(FORMAT, value));
+            String sql = parsingPlaceHolder(SQLUtils.toSQLString(sqlExpr), value -> String.format(FORMAT, value.toString()));
 
             SQLUtils.replaceInParent(sqlExpr, SQLUtils.toSQLExpr(sql));
         }
@@ -417,7 +441,7 @@ public class Param {
             return;
         }
         String sql = orders.stream().map(SQLUtils::toSQLString).collect(Collectors.joining(DELIMITER));
-        sql = parsingPlaceHolder(sql, value -> value);
+        sql = parsingPlaceHolder(sql, Object::toString);
 
         SQLExpr querySQL = SQLUtils.toSQLExpr("select * from dual order by " + sql);
         if (querySQL instanceof SQLQueryExpr) {
@@ -436,7 +460,7 @@ public class Param {
             items.removeIf(Param::unprocessed);
 
             String sql = items.stream().map(SQLUtils::toSQLString).collect(Collectors.joining(DELIMITER));
-            sql = parsingPlaceHolder(sql, value -> value);
+            sql = parsingPlaceHolder(sql, Object::toString);
 
             List<SQLExpr> s = Stream.of(sql.split(REGEX))
                     .map(SQLUtils::toSQLExpr)
@@ -471,7 +495,7 @@ public class Param {
             return;
         }
 
-        String sql = parsingPlaceHolder(SQLUtils.toSQLString(part), value -> value);
+        String sql = parsingPlaceHolder(SQLUtils.toSQLString(part), Object::toString);
 
         SQLExpr newSql = SQLUtils.toSQLExpr(sql);
         if (newSql instanceof SQLBetweenExpr) {
@@ -503,7 +527,7 @@ public class Param {
                 }
             }
         } else {
-            String sql = parsingPlaceHolder(SQLUtils.toSQLString(methodInvokeExpr), value -> value);
+            String sql = parsingPlaceHolder(SQLUtils.toSQLString(methodInvokeExpr), Object::toString);
             SQLExpr newSql = SQLUtils.toSQLExpr(sql);
             SQLUtils.replaceInParent(methodInvokeExpr, newSql);
         }
