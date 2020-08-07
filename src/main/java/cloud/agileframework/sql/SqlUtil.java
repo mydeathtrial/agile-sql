@@ -1,6 +1,5 @@
-package com.agile.common.util;
+package cloud.agileframework.sql;
 
-import com.agile.sql.Param;
 import com.alibaba.druid.sql.SQLUtils;
 import com.alibaba.druid.sql.ast.SQLExpr;
 import com.alibaba.druid.sql.ast.SQLObject;
@@ -424,94 +423,4 @@ public class SqlUtil {
             return null;
         }
     }
-
-//    public static void main(String[] args) {
-//        String s = "ax;13";
-//
-//        String sql = "select a.business_code AS 'businessCode', \" +\n" +
-//                "            \"sd.depart_name AS 'deptName', \" +\n" +
-//                "            \"a.business_name AS 'businessName', a.foura_flag AS 'fouraFlag', ad.datasource AS 'dataSource', \" +\n" +
-//                "            \"ad.describes AS 'describe' from asset_base a \" +\n" +
-//                "            \"left join asset_data_source ad on ad.asset_id = a.asset_id \" +\n" +
-//                "            \"left join sys_department sd on sd.sys_depart_id = a.dept_id  \" +\n" +
-//                "            \"where a.del_flag = 0 and ad.del_flag = 0 and a.dept_id in ({deptName}) \" +\n" +
-//                "            \"and a.asset_id in ({businessName}) and a.business_code LIKE '%{businessCode}%' and a.foura_flag = '{fouraFlag}' order by a.update_time desc ";
-//
-//        sql = "select asset_id as businessId,dept_id as departId,business_name as businessName,business_code as businessNumber from asset_base where del_flag = 0 and  dept_id in ({sysDepartIds})";
-//        Map<String,String> map = Maps.newHashMap();
-//        map.put("sysDepartIds",s);
-//
-//        System.out.println(parserSQL(sql,map));
-//    }
-//    public static void main(String[] args) {
-//        String sql = "SELECT a,{column} as tt FROM tableA as ta LEFT JOIN (\n" +
-//                "SELECT d,e,f FROM tableB as tb where d = {d:d} and e like '%{e:e}' or f in ({f})\n" +
-//                ") ON ta.a = tb.d where ta.a = {a} and tb.b like '%{b}' or tb.c in ({c}) or tb.d in (select g from tableC where h in ({h}))\n" +
-//                "group by ta.a,ta.b,ta.c HAVING ta.a = {ga} and tb.b like '%{gb}' or tb.c in (select i from tableD where j in({j})) \n" +
-//                "ORDER BY {order}";
-//
-//        String sqlEsCount = "select  date_format(count_date, '{format}') as `key` ,  date_format(count_date, '{format}') as `name` , sum(es_eqpt_count) as `value` " +
-//                " from asset_count " +
-//                " where date_format(count_date, '{format}') >= date_format({startTime}, '{format}') " +
-//                " and date_format(count_date, '{format}') <= date_format({endTime}, '{format}')" +
-//                " group by `key`";
-//
-//        String update = "update sys_user set a={a},b={b} where a={a}";
-//
-//        String update2 = "INSERT INTO `ad_logical_exc_set_data` (type_id, create_time) VALUES ('{typeId}', '{time}')\n";
-//
-//        String sqlCommonStr = "select p.*, u.name as salt_key, c.content_id as content_id, c.event_create_time as event_create_time  " +
-//                " from process_apply p, sys_users u , process_approval a, process_apply_content c " +
-//                " where p.apply_user_id = u.sys_users_id " +
-//                " and  p.id = c.apply_id  " +
-//                " and p.id = a.apply_id " +
-//                " and ( unix_timestamp(p.apply_time)*1000 >={startTimeL} and unix_timestamp(p.apply_time)*1000 <= {endTimeL} ) " +
-//                " and p.approval_type ='{approvalType}' " +
-//                " and p.state in({state})  " +
-//                " and  (a.approval_type ='{approvalType2}') " +
-//                " and  (c.event_name like '%{condition}%' or p.id like '%{condition}%' or u.name like '%{condition}%' or p.apply_message like '%{condition}%' ) ";
-//
-//        sql = " select b.approval_type as `name`, b.approval_type as `key` , count(1) as `value` " +
-//                " from (" + sqlCommonStr + ") b " +
-//                " group by b.approval_type order by value desc limit 5 ";
-//
-//        sql = " select date_format(statistics_date, '{format}') as `key`, date_format(statistics_date, '{format}') as `name`," +
-//                "  start_score as startScore, min_score as minScore, max_score as maxScore , end_score  as endScore " +
-//                "from trend_score_day  " +
-//                "where date_format(statistics_date, '{format}') >= FROM_UNIXTIME({startTime}/1000,'{format}')  " +
-//                "and date_format(statistics_date, '{format}') <= FROM_UNIXTIME({endTime}/1000, '{format}') ";
-//        Map<String, Object> map = Maps.newHashMap();
-////        map.put("column", new String[]{"a", "b"});
-////        map.put("a", "'abc'");
-////        map.put("b", "b");
-////        map.put("c", new String[]{"c1", "c2"});
-////        map.put("d", "d");
-////        map.put("e", "e");
-////        map.put("f", new String[]{"f1", "f2"});
-////        map.put("g", "g");
-////        map.put("h", new String[]{"h1", "h2"});
-////        map.put("j", new String[]{"j1", "j2"});
-////        map.put("ga", "ga'''");
-////        map.put("gb", "gb");
-//        map.put("order", "ad desc");
-//
-//        map.put("format", "%Y/%m/%d");
-//        map.put("typeId", "typeId");
-//        map.put("time", "123123123");
-//
-//        map.put("startTime", "11111111");
-//        map.put("endTime", "22222222");
-//
-//        parserSQL(sql, map);
-//    }
-
-//    public static void main(String[] args) {
-//        HashMap<String, Object> map = Maps.newHashMap();
-//        map.put("d"," ");
-//        map.put("e",new String[]{});
-//        map.put("c",Demo.builder().a("a").b("b").c(Lists.newArrayList("c","ss")).build());
-//
-//        String sql = "select * from dual where a = '{c.a}' and b = '{c.b}' and b in ({c.c}) and d = '{d}' and e in ({e})";
-//        System.out.println(parserSQL(sql,map));
-//    }
 }

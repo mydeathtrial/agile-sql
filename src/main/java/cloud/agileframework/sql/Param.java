@@ -1,9 +1,8 @@
-package com.agile.sql;
+package cloud.agileframework.sql;
 
-import com.agile.common.util.SqlUtil;
-import com.agile.common.util.json.JSONUtil;
-import com.agile.common.util.object.ObjectUtil;
-import com.agile.common.util.string.StringUtil;
+import cloud.agileframework.common.util.json.JSONUtil;
+import cloud.agileframework.common.util.object.ObjectUtil;
+import cloud.agileframework.common.util.string.StringUtil;
 import com.alibaba.druid.sql.SQLUtils;
 import com.alibaba.druid.sql.ast.SQLExpr;
 import com.alibaba.druid.sql.ast.SQLObject;
@@ -67,7 +66,7 @@ public class Param {
 
     public Param(String key, Object value) {
         if (isIllegal(value.toString())) {
-            throw new ParserException();
+            throw new ParserException("SQL 注入风险");
         }
         this.placeHolder = PARAM_START + key + PARAM_END;
         THREAD_LOCAL.get().put(placeHolder, value);
