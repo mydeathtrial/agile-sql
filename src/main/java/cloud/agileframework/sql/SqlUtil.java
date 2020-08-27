@@ -72,6 +72,7 @@ public class SqlUtil {
 
     public static String parserSQL(String sql, Object parameters) {
         sql = Param.parsingSqlString(sql, Param.parsingParam(parameters));
+        sql.replace("<","<  ");
         return parserSQL(sql);
     }
 
