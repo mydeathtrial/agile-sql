@@ -1,6 +1,6 @@
 # agile-sql : 动态sql解析器
 设计初衷是为JPA规范下持久层框架提供类似于MyBatis一样的动态sql处理能力，该组件在Alibaba Druid的SQL语法解析能力基础上，增加了根据调用参数动态
-判断剔除语法段能力
+判断剔除语法段能力，工具中对sql的语法处理均以MySQL语法为基准，如果需要转换为其他数据库可以全局替换为druid中其他数据库语法解析。
 ----
 [![](https://img.shields.io/badge/druid-LATEST-green)](https://img.shields.io/badge/druid-LATEST-green)
 [![](https://img.shields.io/badge/build-maven-green)](https://img.shields.io/badge/build-maven-green)

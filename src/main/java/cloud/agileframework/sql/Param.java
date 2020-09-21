@@ -51,7 +51,7 @@ public class Param {
     public static final String FORMAT1 = "'%s'";
     public static final String DELIMITER = ",";
     public static final String REGEX = "[\\,]+(?=[^\\)]*(\\(|$))";
-    public static final String SQL_ILLEGAL = "\\b(sp_|xp_|exec|execute|like|create|group|order|by|having|where|from|union|and|exec|insert|select|drop|grant|alter|delete|update|count|chr|mid|master|truncate|char|declare|or|ifnull|0[xX][\\da-fA-F]+)\\b|([*;+'%])";
+    public static final String SQL_ILLEGAL = "\\b(sp_|xp_|execute|like|create|group|order|by|having|where|from|union|and|exec|insert|select|drop|grant|alter|delete|update|count|chr|mid|master|truncate|char|declare|or|ifnull|0[xX][\\da-fA-F]+)\\b|([*;+'%])";
     public static final int INITIAL_CAPACITY = 16;
     private static final ThreadLocal<Map<String, Object>> THREAD_LOCAL = new ThreadLocal<>();
     private static final String PARAM_START = "@_START_";
@@ -294,10 +294,10 @@ public class Param {
         List<SQLSelectItem> sqlSelectItems = sqlSelectQueryBlock.getSelectList();
         sqlSelectItems.removeIf(Param::unprocessed);
 
-        String sql = sqlSelectItems.stream().map(SQLUtils::toSQLString).collect(Collectors.joining(DELIMITER));
+        String sql = sqlSelectItems.stream().map(SQLUtils::toMySqlString).collect(Collectors.joining(DELIMITER));
         sql = parsingPlaceHolder(sql, Object::toString);
 
-        SQLExpr sqlExpr = SQLUtils.toSQLExpr("select " + sql + " from dual");
+        SQLExpr sqlExpr = SQLUtils.toMySqlExpr("select " + sql + " from dual");
         if (sqlExpr instanceof SQLQueryExpr) {
             List<SQLSelectItem> list = ((SQLQueryExpr) sqlExpr).getSubQuery().getQueryBlock().getSelectList();
             sqlSelectItems.clear();
@@ -317,11 +317,11 @@ public class Param {
         }
         items.forEach(node -> {
             SQLExpr column = node.getColumn();
-            String newColumn = parsingPlaceHolder(SQLUtils.toSQLString(column), Object::toString);
-            node.setColumn(SQLUtils.toSQLExpr(newColumn));
+            String newColumn = parsingPlaceHolder(SQLUtils.toMySqlString(column), Object::toString);
+            node.setColumn(SQLUtils.toMySqlExpr(newColumn));
         });
         items.forEach(node -> {
-            String value = SQLUtils.toSQLString(node.getValue());
+            String value = SQLUtils.toMySqlString(node.getValue());
 
             boolean prefix = !value.startsWith(PREFIX);
             boolean suffix = !value.endsWith(PREFIX);
@@ -338,7 +338,7 @@ public class Param {
                 return vStr;
             });
 
-            node.setValue(SQLUtils.toSQLExpr(newValue));
+            node.setValue(SQLUtils.toMySqlExpr(newValue));
         });
     }
 
@@ -361,11 +361,11 @@ public class Param {
                 values.remove(valueSQLExpr);
                 continue;
             }
-            String newColumn = parsingPlaceHolder(SQLUtils.toSQLString(column), Object::toString);
+            String newColumn = parsingPlaceHolder(SQLUtils.toMySqlString(column), Object::toString);
             columns.remove(column);
-            columns.add(i, SQLUtils.toSQLExpr(newColumn));
+            columns.add(i, SQLUtils.toMySqlExpr(newColumn));
 
-            String value = SQLUtils.toSQLString(valueSQLExpr);
+            String value = SQLUtils.toMySqlString(valueSQLExpr);
             boolean prefix = !value.startsWith(PREFIX);
             boolean suffix = !value.endsWith(PREFIX);
             String newValue = parsingPlaceHolder(value, v -> {
@@ -382,7 +382,7 @@ public class Param {
             });
 
             values.remove(valueSQLExpr);
-            values.add(i, SQLUtils.toSQLExpr(newValue));
+            values.add(i, SQLUtils.toMySqlExpr(newValue));
         }
     }
 
@@ -394,11 +394,11 @@ public class Param {
         targetList.removeIf(Param::unprocessed);
 
         if (targetList.isEmpty()) {
-            SQLUtils.replaceInParent(sqlExpr, SQLUtils.toSQLExpr(REPLACE_NULL_CONDITION));
+            SQLUtils.replaceInParent(sqlExpr, SQLUtils.toMySqlExpr(REPLACE_NULL_CONDITION));
             return;
         }
-        String sql = parsingPlaceHolder(SQLUtils.toSQLString(sqlExpr), value -> String.format(FORMAT1, value.toString()));
-        SQLExpr newSQLInListExpr = SQLUtils.toSQLExpr(sql);
+        String sql = parsingPlaceHolder(SQLUtils.toMySqlString(sqlExpr), value -> String.format(FORMAT1, value.toString()));
+        SQLExpr newSQLInListExpr = SQLUtils.toMySqlExpr(sql);
 
         if (newSQLInListExpr instanceof SQLInListExpr) {
             sqlExpr.setTargetList(((SQLInListExpr) newSQLInListExpr).getTargetList());
@@ -412,9 +412,9 @@ public class Param {
             return;
         }
         if (unprocessed(sqlExpr)) {
-            SQLUtils.replaceInParent(sqlExpr, SQLUtils.toSQLExpr(REPLACE_NULL_CONDITION));
+            SQLUtils.replaceInParent(sqlExpr, SQLUtils.toMySqlExpr(REPLACE_NULL_CONDITION));
         } else {
-            String right = SQLUtils.toSQLString(sqlExpr.getRight());
+            String right = SQLUtils.toMySqlString(sqlExpr.getRight());
 //            if (!right.startsWith(PREFIX)) {
 //                right = PREFIX + right;
 //            }
@@ -422,10 +422,10 @@ public class Param {
 //                right = right + PREFIX;
 //            }
             String rightSql = parsingPlaceHolder(right, value -> String.format(FORMAT, value.toString()).replace(PREFIX, REPLACEMENT));
-            sqlExpr.setRight(SQLUtils.toSQLExpr(rightSql));
-            String sql = parsingPlaceHolder(SQLUtils.toSQLString(sqlExpr), value -> String.format(FORMAT, value.toString()));
+            sqlExpr.setRight(SQLUtils.toMySqlExpr(rightSql));
+            String sql = parsingPlaceHolder(SQLUtils.toMySqlString(sqlExpr), value -> String.format(FORMAT, value.toString()));
 
-            SQLUtils.replaceInParent(sqlExpr, SQLUtils.toSQLExpr(sql));
+            SQLUtils.replaceInParent(sqlExpr, SQLUtils.toMySqlExpr(sql));
         }
     }
 
@@ -439,10 +439,10 @@ public class Param {
         if (orders.isEmpty()) {
             return;
         }
-        String sql = orders.stream().map(SQLUtils::toSQLString).collect(Collectors.joining(DELIMITER));
+        String sql = orders.stream().map(SQLUtils::toMySqlString).collect(Collectors.joining(DELIMITER));
         sql = parsingPlaceHolder(sql, Object::toString);
 
-        SQLExpr querySQL = SQLUtils.toSQLExpr("select * from dual order by " + sql);
+        SQLExpr querySQL = SQLUtils.toMySqlExpr("select * from dual order by " + sql);
         if (querySQL instanceof SQLQueryExpr) {
             List<SQLSelectOrderByItem> list = ((SQLQueryExpr) querySQL).getSubQuery().getQueryBlock().getOrderBy().getItems();
             orders.clear();
@@ -458,11 +458,11 @@ public class Param {
         if (!ObjectUtil.isEmpty(items)) {
             items.removeIf(Param::unprocessed);
 
-            String sql = items.stream().map(SQLUtils::toSQLString).collect(Collectors.joining(DELIMITER));
+            String sql = items.stream().map(SQLUtils::toMySqlString).collect(Collectors.joining(DELIMITER));
             sql = parsingPlaceHolder(sql, Object::toString);
 
             List<SQLExpr> s = Stream.of(sql.split(REGEX))
-                    .map(SQLUtils::toSQLExpr)
+                    .map(SQLUtils::toMySqlExpr)
                     .collect(Collectors.toList());
 
             items.clear();
@@ -485,18 +485,18 @@ public class Param {
      * @return 是否
      */
     public static boolean unprocessed(SQLObject sql) {
-        return SQLUtils.toSQLString(sql).contains(NOT_FOUND_PARAM);
+        return SQLUtils.toMySqlString(sql).contains(NOT_FOUND_PARAM);
     }
 
     public static void parsingSQLBetweenExpr(SQLBetweenExpr part) {
         if (unprocessed(part)) {
-            SQLUtils.replaceInParent(part, SQLUtils.toSQLExpr(REPLACE_NULL_CONDITION));
+            SQLUtils.replaceInParent(part, SQLUtils.toMySqlExpr(REPLACE_NULL_CONDITION));
             return;
         }
 
-        String sql = parsingPlaceHolder(SQLUtils.toSQLString(part), Object::toString);
+        String sql = parsingPlaceHolder(SQLUtils.toMySqlString(part), Object::toString);
 
-        SQLExpr newSql = SQLUtils.toSQLExpr(sql);
+        SQLExpr newSql = SQLUtils.toMySqlExpr(sql);
         if (newSql instanceof SQLBetweenExpr) {
             part.setNot(((SQLBetweenExpr) newSql).isNot());
             part.setBeginExpr(((SQLBetweenExpr) newSql).getBeginExpr());
@@ -509,8 +509,8 @@ public class Param {
         if (Param.unprocessed(methodInvokeExpr)) {
             SQLObject parent = methodInvokeExpr.getParent();
             if (parent instanceof SQLBinaryOpExpr) {
-                ((SQLBinaryOpExpr) parent).setRight(SQLUtils.toSQLExpr("1"));
-                ((SQLBinaryOpExpr) parent).setLeft(SQLUtils.toSQLExpr("1"));
+                ((SQLBinaryOpExpr) parent).setRight(SQLUtils.toMySqlExpr("1"));
+                ((SQLBinaryOpExpr) parent).setLeft(SQLUtils.toMySqlExpr("1"));
                 ((SQLBinaryOpExpr) parent).setOperator(Equality);
             } else if (parent instanceof SQLInListExpr) {
                 ((SQLInListExpr) parent).getTargetList().remove(methodInvokeExpr);
@@ -526,8 +526,8 @@ public class Param {
                 }
             }
         } else {
-            String sql = parsingPlaceHolder(SQLUtils.toSQLString(methodInvokeExpr), Object::toString);
-            SQLExpr newSql = SQLUtils.toSQLExpr(sql);
+            String sql = parsingPlaceHolder(SQLUtils.toMySqlString(methodInvokeExpr), Object::toString);
+            SQLExpr newSql = SQLUtils.toMySqlExpr(sql);
             SQLUtils.replaceInParent(methodInvokeExpr, newSql);
         }
     }

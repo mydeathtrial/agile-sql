@@ -194,13 +194,13 @@ public class SqlUtil {
     }
 
     public static SQLExpr parsingWhereConstant(SQLExpr sqlExpr) {
-        String where = SQLUtils.toSQLString(sqlExpr);
+        String where = SQLUtils.toMySqlString(sqlExpr);
         where = where.replaceAll(CONSTANT_CONDITION_REGEX, "").trim();
         final int minSize = 3;
         if (where.trim().length() < minSize || CONSTANT_CONDITION.equals(where)) {
             return null;
         }
-        sqlExpr = SQLUtils.toSQLExpr(where);
+        sqlExpr = SQLUtils.toMySqlExpr(where);
         if (where.contains(CONSTANT_CONDITION)) {
             return parsingWhereConstant(sqlExpr);
         } else {
