@@ -11,7 +11,6 @@ import com.alibaba.druid.sql.ast.expr.SQLBetweenExpr;
 import com.alibaba.druid.sql.ast.expr.SQLBinaryOpExpr;
 import com.alibaba.druid.sql.ast.expr.SQLInListExpr;
 import com.alibaba.druid.sql.ast.expr.SQLMethodInvokeExpr;
-import com.alibaba.druid.sql.ast.expr.SQLQueryExpr;
 import com.alibaba.druid.sql.ast.statement.SQLInsertStatement;
 import com.alibaba.druid.sql.ast.statement.SQLSelectGroupByClause;
 import com.alibaba.druid.sql.ast.statement.SQLSelectItem;
@@ -29,11 +28,10 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
-import java.util.function.Function;
+import java.util.function.Consumer;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
-import java.util.stream.Stream;
 
 import static com.alibaba.druid.sql.ast.expr.SQLBinaryOperator.Equality;
 
@@ -45,12 +43,7 @@ import static com.alibaba.druid.sql.ast.expr.SQLBinaryOperator.Equality;
  * @since 1.0
  */
 public class Param {
-    public static final String PREFIX = "'";
-    public static final String REPLACEMENT = "''";
-    public static final String FORMAT = "%s";
-    public static final String FORMAT1 = "'%s'";
-    public static final String DELIMITER = ",";
-    public static final String REGEX = "[\\,]+(?=[^\\)]*(\\(|$))";
+
     public static final String SQL_ILLEGAL = "\\b(sp_|xp_|execute|like|create|group|order|by|having|where|from|union|and|exec|insert|select|drop|grant|alter|delete|update|count|chr|mid|master|truncate|char|declare|or|ifnull|0[xX][\\da-fA-F]+)\\b|([*;+'%])";
     public static final int INITIAL_CAPACITY = 16;
     private static final ThreadLocal<Map<String, Object>> THREAD_LOCAL = new ThreadLocal<>();
@@ -77,7 +70,7 @@ public class Param {
      *
      * @return 是否
      */
-    private static boolean isIllegal(String sql) {
+    public static boolean isIllegal(String sql) {
         Matcher matcher = Pattern.compile(SQL_ILLEGAL).matcher(sql.toLowerCase());
         return matcher.find();
 
@@ -110,7 +103,7 @@ public class Param {
         }
 
         if (obj instanceof Optional) {
-            return !((Optional) obj).isPresent();
+            return !((Optional<?>) obj).isPresent();
         }
         if (obj instanceof CharSequence) {
             int strLen = ((CharSequence) obj).length();
@@ -128,11 +121,11 @@ public class Param {
             return Array.getLength(obj) == 0;
         }
         if (obj instanceof Collection) {
-            Object set = ((Collection) obj).stream().filter(node -> !StringUtil.isEmpty(String.valueOf(node))).collect(Collectors.toSet());
-            return ((Collection) set).isEmpty();
+            Object set = ((Collection<?>) obj).stream().filter(node -> !StringUtil.isEmpty(String.valueOf(node))).collect(Collectors.toSet());
+            return ((Collection<?>) set).isEmpty();
         }
         if (obj instanceof Map) {
-            return ((Map) obj).isEmpty();
+            return ((Map<?, ?>) obj).isEmpty();
         }
 
         // else
@@ -148,13 +141,14 @@ public class Param {
      * @return 处理过的sql
      */
     public static String parsingSqlString(String sql, Object params) {
+        sql = StringUtil.parsingPlaceholder("${", "}", ":", sql, params, NOT_FOUND_PARAM);
         return parsingPlaceholder("{", "}", ":", sql, params, NOT_FOUND_PARAM);
     }
 
     private static String parsingPlaceholder(String openToken, String closeToken, String equalToken, String text, Object args, String replaceNull) {
         if (args == null) {
             if (replaceNull != null) {
-                args = new HashMap(0);
+                args = new HashMap<String, Object>(0);
             } else {
                 return text;
             }
@@ -249,42 +243,30 @@ public class Param {
         return builder.toString();
     }
 
-    private static String parsingPlaceHolder(String sql, Function<Object, String> function) {
-        String finalSql = sql;
+    public static void parsingPlaceHolder(String sql) {
         Set<Map.Entry<String, Object>> set = THREAD_LOCAL.get()
                 .entrySet()
                 .stream()
-                .filter(param -> finalSql.contains(param.getKey()))
+                .filter(param -> sql.contains(param.getKey()))
                 .collect(Collectors.toSet());
 
         for (Map.Entry<String, Object> param : set) {
-            Object value = param.getValue();
-            String replaceValue;
-            if (Collection.class.isAssignableFrom(value.getClass()) || value.getClass().isArray()) {
-                Stream<Object> stream;
-                if (value.getClass().isArray()) {
-                    ArrayList<Object> collection = new ArrayList<>();
-                    int length = Array.getLength(value);
-                    for (int i = 0; i < length; i++) {
-                        Object v = Array.get(value, i);
-                        collection.add(v);
-                    }
-                    stream = collection.stream();
-                } else {
-                    stream = ((Collection<Object>) value).stream();
-                }
-                replaceValue = stream.map(n -> function.apply(n)).collect(Collectors.joining(DELIMITER));
-            } else {
-                if (isIllegal(value.toString())) {
-                    throw new ParserException();
-                }
-                replaceValue = function.apply(value);
-
-            }
-            sql = sql.replace(param.getKey(), replaceValue);
+            SqlUtil.setQueryParamThreadLocal(param.getKey(), param.getValue());
         }
+    }
 
-        return sql;
+    private static void parsingPlaceHolder(String sql, Consumer<Map.Entry<String, Object>> consumer) {
+        Set<Map.Entry<String, Object>> set = THREAD_LOCAL.get()
+                .entrySet()
+                .stream()
+                .filter(param -> sql.contains(param.getKey()))
+                .collect(Collectors.toSet());
+
+        for (Map.Entry<String, Object> param : set) {
+            if (consumer != null) {
+                consumer.accept(param);
+            }
+        }
     }
 
     public static void parsingSQLSelectItem(SQLSelectQueryBlock sqlSelectQueryBlock) {
@@ -293,16 +275,6 @@ public class Param {
         }
         List<SQLSelectItem> sqlSelectItems = sqlSelectQueryBlock.getSelectList();
         sqlSelectItems.removeIf(Param::unprocessed);
-
-        String sql = sqlSelectItems.stream().map(SQLUtils::toMySqlString).collect(Collectors.joining(DELIMITER));
-        sql = parsingPlaceHolder(sql, Object::toString);
-
-        SQLExpr sqlExpr = SQLUtils.toMySqlExpr("select " + sql + " from dual");
-        if (sqlExpr instanceof SQLQueryExpr) {
-            List<SQLSelectItem> list = ((SQLQueryExpr) sqlExpr).getSubQuery().getQueryBlock().getSelectList();
-            sqlSelectItems.clear();
-            sqlSelectItems.addAll(list);
-        }
     }
 
     public static void parsingSQLUpdateStatement(SQLUpdateStatement sqlUpdateStatement) {
@@ -311,35 +283,6 @@ public class Param {
         }
         List<SQLUpdateSetItem> items = sqlUpdateStatement.getItems();
         items.removeIf(Param::unprocessed);
-
-        if (items.isEmpty()) {
-            return;
-        }
-        items.forEach(node -> {
-            SQLExpr column = node.getColumn();
-            String newColumn = parsingPlaceHolder(SQLUtils.toMySqlString(column), Object::toString);
-            node.setColumn(SQLUtils.toMySqlExpr(newColumn));
-        });
-        items.forEach(node -> {
-            String value = SQLUtils.toMySqlString(node.getValue());
-
-            boolean prefix = !value.startsWith(PREFIX);
-            boolean suffix = !value.endsWith(PREFIX);
-            String newValue = parsingPlaceHolder(value, v -> {
-                String vStr = v.toString();
-                if(!(v instanceof Boolean)){
-                    if (prefix) {
-                        vStr = PREFIX + vStr;
-                    }
-                    if (suffix) {
-                        vStr = vStr + PREFIX;
-                    }
-                }
-                return vStr;
-            });
-
-            node.setValue(SQLUtils.toMySqlExpr(newValue));
-        });
     }
 
     public static void parsingSQLInsertStatement(SQLInsertStatement statement) {
@@ -359,30 +302,7 @@ public class Param {
             if (unprocessed(column) || unprocessed(valueSQLExpr)) {
                 columns.remove(column);
                 values.remove(valueSQLExpr);
-                continue;
             }
-            String newColumn = parsingPlaceHolder(SQLUtils.toMySqlString(column), Object::toString);
-            columns.remove(column);
-            columns.add(i, SQLUtils.toMySqlExpr(newColumn));
-
-            String value = SQLUtils.toMySqlString(valueSQLExpr);
-            boolean prefix = !value.startsWith(PREFIX);
-            boolean suffix = !value.endsWith(PREFIX);
-            String newValue = parsingPlaceHolder(value, v -> {
-                String vStr = v.toString();
-                if(!(v instanceof Boolean)){
-                    if (prefix) {
-                        vStr = PREFIX + vStr;
-                    }
-                    if (suffix) {
-                        vStr = vStr + PREFIX;
-                    }
-                }
-                return vStr;
-            });
-
-            values.remove(valueSQLExpr);
-            values.add(i, SQLUtils.toMySqlExpr(newValue));
         }
     }
 
@@ -397,14 +317,33 @@ public class Param {
             SQLUtils.replaceInParent(sqlExpr, SQLUtils.toMySqlExpr(REPLACE_NULL_CONDITION));
             return;
         }
-        String sql = parsingPlaceHolder(SQLUtils.toMySqlString(sqlExpr), value -> String.format(FORMAT1, value.toString()));
-        SQLExpr newSQLInListExpr = SQLUtils.toMySqlExpr(sql);
 
-        if (newSQLInListExpr instanceof SQLInListExpr) {
-            sqlExpr.setTargetList(((SQLInListExpr) newSQLInListExpr).getTargetList());
-            sqlExpr.setNot(((SQLInListExpr) newSQLInListExpr).isNot());
-            sqlExpr.setExpr(sqlExpr.getExpr());
-        }
+        parsingPlaceHolder(SQLUtils.toMySqlString(sqlExpr), value -> {
+            String key = value.getKey();
+
+            Object vs = value.getValue();
+            if (Collection.class.isAssignableFrom(vs.getClass()) || vs.getClass().isArray()) {
+                List<Object> list;
+                if (vs.getClass().isArray()) {
+                    ArrayList<Object> collection = new ArrayList<>();
+                    int length = Array.getLength(vs);
+                    for (int i = 0; i < length; i++) {
+                        Object v = Array.get(vs, i);
+                        collection.add(v);
+                    }
+                    list = collection;
+                } else {
+                    list = new ArrayList<>((Collection<Object>) vs);
+                }
+
+                for (int i = 0; i < list.size(); i++) {
+                    String ck = key + i;
+                    Object cv = list.get(i);
+                    SqlUtil.setQueryParamThreadLocal(ck, cv);
+                }
+                SqlUtil.setQueryParamThreadLocal(key, new WhereIn(key, list));
+            }
+        });
     }
 
     public static void parsingSQLBinaryOpExpr(SQLBinaryOpExpr sqlExpr) {
@@ -413,19 +352,6 @@ public class Param {
         }
         if (unprocessed(sqlExpr)) {
             SQLUtils.replaceInParent(sqlExpr, SQLUtils.toMySqlExpr(REPLACE_NULL_CONDITION));
-        } else {
-            String right = SQLUtils.toMySqlString(sqlExpr.getRight());
-//            if (!right.startsWith(PREFIX)) {
-//                right = PREFIX + right;
-//            }
-//            if (!right.endsWith(PREFIX)) {
-//                right = right + PREFIX;
-//            }
-            String rightSql = parsingPlaceHolder(right, value -> String.format(FORMAT, value.toString()).replace(PREFIX, REPLACEMENT));
-            sqlExpr.setRight(SQLUtils.toMySqlExpr(rightSql));
-            String sql = parsingPlaceHolder(SQLUtils.toMySqlString(sqlExpr), value -> String.format(FORMAT, value.toString()));
-
-            SQLUtils.replaceInParent(sqlExpr, SQLUtils.toMySqlExpr(sql));
         }
     }
 
@@ -435,19 +361,6 @@ public class Param {
         }
         List<SQLSelectOrderByItem> orders = sqlExpr.getItems();
         orders.removeIf(Param::unprocessed);
-
-        if (orders.isEmpty()) {
-            return;
-        }
-        String sql = orders.stream().map(SQLUtils::toMySqlString).collect(Collectors.joining(DELIMITER));
-        sql = parsingPlaceHolder(sql, Object::toString);
-
-        SQLExpr querySQL = SQLUtils.toMySqlExpr("select * from dual order by " + sql);
-        if (querySQL instanceof SQLQueryExpr) {
-            List<SQLSelectOrderByItem> list = ((SQLQueryExpr) querySQL).getSubQuery().getQueryBlock().getOrderBy().getItems();
-            orders.clear();
-            orders.addAll(list);
-        }
     }
 
     public static void parsingSQLSelectGroupByClause(SQLSelectGroupByClause sqlExpr) {
@@ -457,16 +370,6 @@ public class Param {
         List<SQLExpr> items = sqlExpr.getItems();
         if (!ObjectUtil.isEmpty(items)) {
             items.removeIf(Param::unprocessed);
-
-            String sql = items.stream().map(SQLUtils::toMySqlString).collect(Collectors.joining(DELIMITER));
-            sql = parsingPlaceHolder(sql, Object::toString);
-
-            List<SQLExpr> s = Stream.of(sql.split(REGEX))
-                    .map(SQLUtils::toMySqlExpr)
-                    .collect(Collectors.toList());
-
-            items.clear();
-            items.addAll(s);
         }
 
         SQLExpr having = sqlExpr.getHaving();
@@ -491,17 +394,6 @@ public class Param {
     public static void parsingSQLBetweenExpr(SQLBetweenExpr part) {
         if (unprocessed(part)) {
             SQLUtils.replaceInParent(part, SQLUtils.toMySqlExpr(REPLACE_NULL_CONDITION));
-            return;
-        }
-
-        String sql = parsingPlaceHolder(SQLUtils.toMySqlString(part), Object::toString);
-
-        SQLExpr newSql = SQLUtils.toMySqlExpr(sql);
-        if (newSql instanceof SQLBetweenExpr) {
-            part.setNot(((SQLBetweenExpr) newSql).isNot());
-            part.setBeginExpr(((SQLBetweenExpr) newSql).getBeginExpr());
-            part.setEndExpr(((SQLBetweenExpr) newSql).getEndExpr());
-            part.setTestExpr(((SQLBetweenExpr) newSql).getTestExpr());
         }
     }
 
@@ -525,10 +417,6 @@ public class Param {
                     ((SQLSelectQueryBlock) selectQuery).getSelectList().remove(parent);
                 }
             }
-        } else {
-            String sql = parsingPlaceHolder(SQLUtils.toMySqlString(methodInvokeExpr), Object::toString);
-            SQLExpr newSql = SQLUtils.toMySqlExpr(sql);
-            SQLUtils.replaceInParent(methodInvokeExpr, newSql);
         }
     }
 }
