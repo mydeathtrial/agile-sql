@@ -12,7 +12,6 @@
 
 * **占位符默认值解析**
 冒号分隔，当占位符key获取不到时，以defaultValue部分语句作为新语句进行替换
-
 提供`${key:defaultValue}`
 提供`{key:defaultValue}`
   
