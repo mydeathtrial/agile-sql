@@ -33,6 +33,7 @@ import com.alibaba.druid.util.JdbcUtils;
 import com.google.common.collect.Maps;
 
 import java.util.ArrayList;
+import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
@@ -65,7 +66,7 @@ public class SqlUtil {
      * @return 生成的sql结果
      */
     public static String parserCountSQL(String sql, Object parameters, Map<String, Object> query) {
-        sql = parserSQL(sql, parameters);
+        sql = parserSQL(sql, parameters, query);
 
         return String.format("select count(1) from (%s) _select_table", sql);
     }
@@ -94,12 +95,14 @@ public class SqlUtil {
 
         Map<String, Object> queryParams = queryParamThreadLocal.get();
         if (queryParams != null) {
-            for (Map.Entry<String, Object> e : queryParams.entrySet()) {
+            Iterator<Map.Entry<String, Object>> it = queryParams.entrySet().iterator();
+            while (it.hasNext()){
+                Map.Entry<String, Object> e = it.next();
                 String k = e.getKey();
                 Object v = e.getValue();
                 if (v instanceof WhereIn) {
                     sql = sql.replace(k, ((WhereIn) v).sql());
-                    queryParams.remove(k);
+                    it.remove();
                 }
             }
 
