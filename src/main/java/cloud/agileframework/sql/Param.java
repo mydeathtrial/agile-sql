@@ -48,6 +48,7 @@ public class Param {
     public static final int INITIAL_CAPACITY = 16;
     private static final ThreadLocal<Map<String, Object>> THREAD_LOCAL = new ThreadLocal<>();
     private static final String PARAM_START = "@_START_";
+    public static final String PARAM_INDEX = "_INDEX";
     private static final String PARAM_END = "_END_";
     private static final String NOT_FOUND_PARAM = "@NOT_FOUND_PARAM_";
     private static final String REPLACE_NULL_CONDITION = " 1=1 ";
@@ -58,9 +59,7 @@ public class Param {
     }
 
     public Param(String key, Object value) {
-        if (isIllegal(value.toString())) {
-            throw new ParserException("SQL 注入风险");
-        }
+
         this.placeHolder = PARAM_START + key + PARAM_END;
         THREAD_LOCAL.get().put(placeHolder, value);
     }
@@ -70,10 +69,11 @@ public class Param {
      *
      * @return 是否
      */
-    public static boolean isIllegal(String sql) {
+    public static void isIllegal(String sql) {
         Matcher matcher = Pattern.compile(SQL_ILLEGAL).matcher(sql.toLowerCase());
-        return matcher.find();
-
+        if (matcher.find()) {
+            throw new ParserException("SQL 注入风险");
+        }
     }
 
     /**
@@ -337,7 +337,7 @@ public class Param {
                 }
 
                 for (int i = 0; i < list.size(); i++) {
-                    String ck = key + i;
+                    String ck = key + i + PARAM_INDEX;
                     Object cv = list.get(i);
                     SqlUtil.setQueryParamThreadLocal(ck, cv);
                 }

@@ -1,7 +1,5 @@
 package cloud.agileframework.sql;
 
-import lombok.Data;
-
 import java.util.List;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
@@ -23,6 +21,6 @@ public class WhereIn {
     }
 
     public String sql() {
-        return IntStream.range(0, in.size()).mapToObj(i -> oldSql + i).collect(Collectors.joining(","));
+        return IntStream.range(0, in.size()).mapToObj(i -> oldSql + i + Param.PARAM_INDEX).collect(Collectors.joining(","));
     }
 }
