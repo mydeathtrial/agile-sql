@@ -90,7 +90,7 @@
     </dependencies>
     <profiles>
         <profile>
-            <id>cent</id>
+            <id>agile</id>
             <build>
                 <plugins>
                     <plugin>
@@ -141,27 +141,19 @@
                     </plugin>
                 </plugins>
             </build>
-            <distributionManagement>
-                <snapshotRepository>
-                    <id>ossrh</id>
-                    <url>https://oss.sonatype.org/content/repositories/snapshots</url>
-                </snapshotRepository>
-                <repository>
-                    <id>ossrh</id>
-                    <url>https://oss.sonatype.org/service/local/staging/deploy/maven2/</url>
-                </repository>
-            </distributionManagement>
-        </profile>
-        <profile>
-            <id>privateServer</id>
-            <distributionManagement>
-                <repository>
-                    <id>agile</id>
-                    <url>http://10.10.10.9:8081/nexus/content/repositories/agile/</url>
-                </repository>
-            </distributionManagement>
         </profile>
     </profiles>
+
+    <distributionManagement>
+        <snapshotRepository>
+            <id>${snapshotRepository.id}</id>
+            <url>${snapshotRepository.url}</url>
+        </snapshotRepository>
+        <repository>
+            <id>${repository.id}</id>
+            <url>${repository.url}</url>
+        </repository>
+    </distributionManagement>
     <build>
         <plugins>
             <plugin>
