@@ -40,11 +40,11 @@
         </module>
 
         <!--<module name="JavadocMethod">-->
-            <!--<property name="severity" value="warning"/>-->
-            <!--<property name="tokens" value="METHOD_DEF"/>-->
-            <!--&lt;!&ndash;允许get set 方法没有注释&ndash;&gt;-->
-            <!--<property name="allowMissingPropertyJavadoc" value="true"/>-->
-            <!--<message key="javadoc.missing" value="方法注释: 不符合 Idss 规范,缺少Javadoc注释。"/>-->
+        <!--<property name="severity" value="warning"/>-->
+        <!--<property name="tokens" value="METHOD_DEF"/>-->
+        <!--&lt;!&ndash;允许get set 方法没有注释&ndash;&gt;-->
+        <!--<property name="allowMissingPropertyJavadoc" value="true"/>-->
+        <!--<message key="javadoc.missing" value="方法注释: 不符合 Idss 规范,缺少Javadoc注释。"/>-->
         <!--</module>-->
 
         <!-- 命名检查 -->

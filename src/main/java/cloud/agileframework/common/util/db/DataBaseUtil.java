@@ -376,7 +376,7 @@ public class DataBaseUtil {
         List<T> list = Lists.newArrayList();
         try (
                 Statement statement = connection.createStatement();
-                ResultSet resultSet = statement.executeQuery(SqlUtil.parserSQL(sql, param));
+                ResultSet resultSet = statement.executeQuery(SqlUtil.parserSQL(sql, param))
         ) {
             if (clazz == String.class) {
                 // 展开结果集数据库

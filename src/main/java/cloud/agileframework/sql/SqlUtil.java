@@ -29,8 +29,11 @@ import com.alibaba.druid.sql.ast.statement.SQLUpdateStatement;
 import com.alibaba.druid.sql.dialect.mysql.visitor.MySqlSchemaStatVisitor;
 import com.alibaba.druid.sql.parser.SQLParserUtils;
 import com.alibaba.druid.sql.parser.SQLStatementParser;
+import com.alibaba.druid.sql.visitor.SchemaStatVisitor;
+import com.alibaba.druid.util.JdbcConstants;
 import com.alibaba.druid.util.JdbcUtils;
 import com.google.common.collect.Maps;
+import lombok.extern.slf4j.Slf4j;
 
 import java.util.ArrayList;
 import java.util.Iterator;
@@ -46,6 +49,7 @@ import java.util.Map;
  * @version 1.0
  * @since 1.0
  */
+@Slf4j
 public class SqlUtil {
     /**
      * 常量表达式正则
@@ -56,7 +60,7 @@ public class SqlUtil {
      */
     public static final String CONSTANT_CONDITION = "1 = 1";
 
-    private static final ThreadLocal<Map<String, Object>> queryParamThreadLocal = new ThreadLocal<>();
+    private static final ThreadLocal<Map<String, Object>> QUERY_PARAM_THREAD_LOCAL = new ThreadLocal<>();
 
     /**
      * 根据给定参数动态生成完成参数占位的查询条数sql语句
@@ -86,40 +90,47 @@ public class SqlUtil {
     public static String parserSQL(String sql, Object parameters, Map<String, Object> query) {
         setQueryParamThreadLocal(query);
 
-        sql = Param.parsingSqlString(sql, Param.parsingParam(parameters));
+        try {
+            sql = Param.parsingSqlString(sql, Param.parsingParam(parameters));
 
-        Param.parsingPlaceHolder(sql);
+            Param.parsingPlaceHolder(sql);
 
-        sql = sql.replace("<", "<  ");
-        sql = parserSQL(sql);
+            sql = sql.replace("<", "<  ");
+            sql = parserSQL(sql);
 
-        Map<String, Object> queryParams = queryParamThreadLocal.get();
-        if (queryParams != null) {
-            Iterator<Map.Entry<String, Object>> it = queryParams.entrySet().iterator();
-            while (it.hasNext()){
-                Map.Entry<String, Object> e = it.next();
-                String k = e.getKey();
-                Object v = e.getValue();
-                if (v instanceof WhereIn) {
-                    sql = sql.replace(k, ((WhereIn) v).sql());
-                    it.remove();
+            Map<String, Object> queryParams = QUERY_PARAM_THREAD_LOCAL.get();
+            if (queryParams != null) {
+                Iterator<Map.Entry<String, Object>> it = queryParams.entrySet().iterator();
+                while (it.hasNext()) {
+                    Map.Entry<String, Object> e = it.next();
+                    String k = e.getKey();
+                    Object v = e.getValue();
+                    if (v instanceof WhereIn) {
+                        sql = sql.replace(k, ((WhereIn) v).sql());
+                        it.remove();
+                    }
+                }
+
+                for (Map.Entry<String, Object> e : queryParams.entrySet()) {
+                    String k = e.getKey();
+                    Object v = e.getValue();
+                    if (query != null) {
+                        sql = sql.replace(k, ":" + k);
+                    } else {
+                        String value = String.valueOf(v);
+                        Param.isIllegal(value);
+                        sql = sql.replace(k, value);
+                    }
                 }
             }
-
-            for (Map.Entry<String, Object> e : queryParams.entrySet()) {
-                String k = e.getKey();
-                Object v = e.getValue();
-                if (query != null) {
-                    sql = sql.replace(k, ":" + k);
-                } else {
-                    String value = String.valueOf(v);
-                    Param.isIllegal(value);
-                    sql = sql.replace(k, value);
-                }
-            }
+        } catch (Exception e) {
+            log.error("agile-sql parse exception", e);
+            throw e;
+        } finally {
+            QUERY_PARAM_THREAD_LOCAL.remove();
         }
 
-        queryParamThreadLocal.remove();
+
         return sql;
     }
 
@@ -132,13 +143,13 @@ public class SqlUtil {
     private static String parserSQL(String sql) {
 
         // 新建 MySQL Parser
-        SQLStatementParser parser = SQLParserUtils.createSQLStatementParser(sql, JdbcUtils.MYSQL);
+        SQLStatementParser parser = SQLParserUtils.createSQLStatementParser(sql, JdbcConstants.MYSQL);
 
         // 使用Parser解析生成AST，这里SQLStatement就是AST
         SQLStatement statement = parser.parseStatement();
 
         // 使用visitor来访问AST
-        MySqlSchemaStatVisitor visitor = new MySqlSchemaStatVisitor();
+        SchemaStatVisitor visitor = SQLUtils.createSchemaStatVisitor(JdbcConstants.MYSQL);
         statement.accept(visitor);
 
         parsingPart(statement);
@@ -370,7 +381,7 @@ public class SqlUtil {
      */
     private static void parsingInSubQuery(SQLInSubQueryExpr c) {
         SQLSelect sqlSelect = c.getSubQuery();
-        SQLStatementParser sqlStatementParser = SQLParserUtils.createSQLStatementParser(parserSQL(sqlSelect.toString()), JdbcUtils.MYSQL);
+        SQLStatementParser sqlStatementParser = SQLParserUtils.createSQLStatementParser(parserSQL(sqlSelect.toString()), JdbcConstants.MYSQL);
         sqlSelect.setQuery(((SQLSelectStatement) sqlStatementParser.parseStatement()).getSelect().getQueryBlock());
     }
 
@@ -382,7 +393,7 @@ public class SqlUtil {
     public static List<SQLSelectOrderByItem> getSort(String sql) {
         List<SQLSelectOrderByItem> sorts = new ArrayList<>();
         // 新建 MySQL Parser
-        SQLStatementParser parser = SQLParserUtils.createSQLStatementParser(sql, JdbcUtils.MYSQL);
+        SQLStatementParser parser = SQLParserUtils.createSQLStatementParser(sql, JdbcConstants.MYSQL);
         // 使用Parser解析生成AST，这里SQLStatement就是AST
         SQLStatement statement = parser.parseStatement();
         SQLSelectQueryBlock sqlSelectQueryBlock = ((SQLSelectStatement) statement).getSelect().getQueryBlock();
@@ -473,7 +484,7 @@ public class SqlUtil {
     }
 
     public static void setQueryParamThreadLocal(String key, Object value) {
-        Map<String, Object> map = queryParamThreadLocal.get();
+        Map<String, Object> map = QUERY_PARAM_THREAD_LOCAL.get();
         if (map == null) {
             map = Maps.newConcurrentMap();
             setQueryParamThreadLocal(map);
@@ -485,11 +496,11 @@ public class SqlUtil {
         if (params == null) {
             return;
         }
-        queryParamThreadLocal.set(params);
+        QUERY_PARAM_THREAD_LOCAL.set(params);
     }
 
     public static void removeQueryParam(String key) {
-        Map<String, Object> map = queryParamThreadLocal.get();
+        Map<String, Object> map = QUERY_PARAM_THREAD_LOCAL.get();
         if (map != null) {
             map.remove(key);
         }
