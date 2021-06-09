@@ -47,11 +47,11 @@ public class Param {
     public static final String SQL_ILLEGAL = "\\b(sp_|xp_|execute|like|create|group|order|by|having|where|from|union|and|exec|insert|select|drop|grant|alter|delete|update|count|chr|mid|master|truncate|char|declare|or|ifnull|0[xX][\\da-fA-F]+)\\b|([*;+'%])";
     public static final int INITIAL_CAPACITY = 16;
     private static final ThreadLocal<Map<String, Object>> THREAD_LOCAL = new ThreadLocal<>();
-    private static final String PARAM_START = "@_START_";
+    public static final String PARAM_START = "@_START_";
     public static final String PARAM_INDEX = "_INDEX";
-    private static final String PARAM_END = "_END_";
-    private static final String NOT_FOUND_PARAM = "@NOT_FOUND_PARAM_";
-    private static final String REPLACE_NULL_CONDITION = " 1=1 ";
+    public static final String PARAM_END = "_END_";
+    public static final String NOT_FOUND_PARAM = "@NOT_FOUND_PARAM_";
+    public static final String REPLACE_NULL_CONDITION = " 1=1 ";
     private final String placeHolder;
 
     public String getPlaceHolder() {
@@ -314,11 +314,11 @@ public class Param {
         targetList.removeIf(Param::unprocessed);
 
         if (targetList.isEmpty()) {
-            SQLUtils.replaceInParent(sqlExpr, SQLUtils.toMySqlExpr(REPLACE_NULL_CONDITION));
+            SQLUtils.replaceInParent(sqlExpr, SQLUtils.toSQLExpr(REPLACE_NULL_CONDITION, SqlUtil.DB_TYPE_THREAD_LOCAL.get()));
             return;
         }
 
-        parsingPlaceHolder(SQLUtils.toMySqlString(sqlExpr), value -> {
+        parsingPlaceHolder(SQLUtils.toSQLString(sqlExpr, SqlUtil.DB_TYPE_THREAD_LOCAL.get()), value -> {
             String key = value.getKey();
 
             Object vs = value.getValue();
@@ -351,7 +351,7 @@ public class Param {
             return;
         }
         if (unprocessed(sqlExpr)) {
-            SQLUtils.replaceInParent(sqlExpr, SQLUtils.toMySqlExpr(REPLACE_NULL_CONDITION));
+            SQLUtils.replaceInParent(sqlExpr, SQLUtils.toSQLExpr(REPLACE_NULL_CONDITION, SqlUtil.DB_TYPE_THREAD_LOCAL.get()));
         }
     }
 
@@ -388,12 +388,12 @@ public class Param {
      * @return 是否
      */
     public static boolean unprocessed(SQLObject sql) {
-        return SQLUtils.toMySqlString(sql).contains(NOT_FOUND_PARAM);
+        return SQLUtils.toSQLString(sql, SqlUtil.DB_TYPE_THREAD_LOCAL.get()).contains(NOT_FOUND_PARAM);
     }
 
     public static void parsingSQLBetweenExpr(SQLBetweenExpr part) {
         if (unprocessed(part)) {
-            SQLUtils.replaceInParent(part, SQLUtils.toMySqlExpr(REPLACE_NULL_CONDITION));
+            SQLUtils.replaceInParent(part, SQLUtils.toSQLExpr(REPLACE_NULL_CONDITION, SqlUtil.DB_TYPE_THREAD_LOCAL.get()));
         }
     }
 
@@ -401,8 +401,8 @@ public class Param {
         if (Param.unprocessed(methodInvokeExpr)) {
             SQLObject parent = methodInvokeExpr.getParent();
             if (parent instanceof SQLBinaryOpExpr) {
-                ((SQLBinaryOpExpr) parent).setRight(SQLUtils.toMySqlExpr("1"));
-                ((SQLBinaryOpExpr) parent).setLeft(SQLUtils.toMySqlExpr("1"));
+                ((SQLBinaryOpExpr) parent).setRight(SQLUtils.toSQLExpr("1", SqlUtil.DB_TYPE_THREAD_LOCAL.get()));
+                ((SQLBinaryOpExpr) parent).setLeft(SQLUtils.toSQLExpr("1", SqlUtil.DB_TYPE_THREAD_LOCAL.get()));
                 ((SQLBinaryOpExpr) parent).setOperator(Equality);
             } else if (parent instanceof SQLInListExpr) {
                 ((SQLInListExpr) parent).getTargetList().remove(methodInvokeExpr);

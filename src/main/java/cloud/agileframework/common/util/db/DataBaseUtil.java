@@ -372,40 +372,5 @@ public class DataBaseUtil {
         PRIMARY_KEY
     }
 
-    public static <T> List<T> query(Connection connection, String sql, Class<T> clazz, Object param) {
-        List<T> list = Lists.newArrayList();
-        try (
-                Statement statement = connection.createStatement();
-                ResultSet resultSet = statement.executeQuery(SqlUtil.parserSQL(sql, param))
-        ) {
-            if (clazz == String.class) {
-                // 展开结果集数据库
-                while (resultSet.next()) {
-                    list.add((T) resultSet.getString(Constant.NumberAbout.ONE));
-                }
-            } else {
-                List<String> columns = Lists.newArrayList();
-                ResultSetMetaData metaData = resultSet.getMetaData();
-                for (int i = 1; i <= metaData.getColumnCount(); i++) {
-                    columns.add(metaData.getColumnName(i));
-                }
-
-                // 展开结果集数据库
-                while (resultSet.next()) {
-                    Map<String, Object> map = Maps.newHashMap();
-                    columns.forEach(column -> {
-                        try {
-                            map.put(column, resultSet.getString(column));
-                        } catch (SQLException ignored) {
-                        }
-                    });
-                    list.add(ObjectUtil.to(map, new TypeReference<>(clazz)));
-                }
-            }
-
-        } catch (Exception ignored) {
-        }
-        return list;
-    }
 
 }

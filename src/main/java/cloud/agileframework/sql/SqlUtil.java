@@ -7,6 +7,7 @@ import com.alibaba.druid.sql.ast.SQLOrderBy;
 import com.alibaba.druid.sql.ast.SQLStatement;
 import com.alibaba.druid.sql.ast.expr.SQLBetweenExpr;
 import com.alibaba.druid.sql.ast.expr.SQLBinaryOpExpr;
+import com.alibaba.druid.sql.ast.expr.SQLIdentifierExpr;
 import com.alibaba.druid.sql.ast.expr.SQLInListExpr;
 import com.alibaba.druid.sql.ast.expr.SQLInSubQueryExpr;
 import com.alibaba.druid.sql.ast.expr.SQLMethodInvokeExpr;
@@ -15,6 +16,7 @@ import com.alibaba.druid.sql.ast.statement.SQLDeleteStatement;
 import com.alibaba.druid.sql.ast.statement.SQLExprTableSource;
 import com.alibaba.druid.sql.ast.statement.SQLInsertStatement;
 import com.alibaba.druid.sql.ast.statement.SQLJoinTableSource;
+import com.alibaba.druid.sql.ast.statement.SQLReplaceStatement;
 import com.alibaba.druid.sql.ast.statement.SQLSelect;
 import com.alibaba.druid.sql.ast.statement.SQLSelectGroupByClause;
 import com.alibaba.druid.sql.ast.statement.SQLSelectOrderByItem;
@@ -26,20 +28,21 @@ import com.alibaba.druid.sql.ast.statement.SQLTableSource;
 import com.alibaba.druid.sql.ast.statement.SQLUnionQuery;
 import com.alibaba.druid.sql.ast.statement.SQLUnionQueryTableSource;
 import com.alibaba.druid.sql.ast.statement.SQLUpdateStatement;
-import com.alibaba.druid.sql.dialect.mysql.visitor.MySqlSchemaStatVisitor;
 import com.alibaba.druid.sql.parser.SQLParserUtils;
 import com.alibaba.druid.sql.parser.SQLStatementParser;
 import com.alibaba.druid.sql.visitor.SchemaStatVisitor;
 import com.alibaba.druid.util.JdbcConstants;
-import com.alibaba.druid.util.JdbcUtils;
+import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import lombok.extern.slf4j.Slf4j;
 
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 /**
  * 描述：
@@ -61,6 +64,21 @@ public class SqlUtil {
     public static final String CONSTANT_CONDITION = "1 = 1";
 
     private static final ThreadLocal<Map<String, Object>> QUERY_PARAM_THREAD_LOCAL = new ThreadLocal<>();
+    public static final ThreadLocal<String> DB_TYPE_THREAD_LOCAL = new ThreadLocal<>();
+
+    public static String parserCountSQLByType(String dbType, String sql, Object parameters, Map<String, Object> query) {
+        sql = parserSQLByType(dbType, sql, parameters, query);
+
+        return String.format("select count(1) from (%s) _select_table", sql);
+    }
+
+    public static String parserCountSQLByType(String dbType, String sql, Object parameters) {
+        return parserCountSQLByType(dbType, sql, parameters, null);
+    }
+
+    public static String parserCountSQLByType(String dbType, String sql) {
+        return parserCountSQLByType(dbType, sql, null, null);
+    }
 
     /**
      * 根据给定参数动态生成完成参数占位的查询条数sql语句
@@ -70,24 +88,41 @@ public class SqlUtil {
      * @return 生成的sql结果
      */
     public static String parserCountSQL(String sql, Object parameters, Map<String, Object> query) {
-        sql = parserSQL(sql, parameters, query);
-
-        return String.format("select count(1) from (%s) _select_table", sql);
-    }
-
-    public static String parserCountSQL(String sql, Object parameters) {
-        return parserCountSQL(sql, parameters, null);
+        return parserCountSQLByType(null, sql, parameters, query);
     }
 
     public static String parserCountSQL(String sql) {
-        return parserCountSQL(sql, null);
+        return parserCountSQLByType(null, sql, null, null);
+    }
+
+    public static String parserCountSQL(String sql, Object parameters) {
+        return parserCountSQLByType(null, sql, parameters, null);
     }
 
     public static String parserSQL(String sql, Object parameters) {
-        return parserSQL(sql, parameters, null);
+        return parserSQLByType(null, sql, parameters, null);
     }
 
     public static String parserSQL(String sql, Object parameters, Map<String, Object> query) {
+        return parserSQLByType(null, sql, parameters, query);
+    }
+
+    /**
+     * 根据给定参数动态生成完成参数占位的sql语句
+     *
+     * @param sql 原sql
+     * @return 生成的sql结果
+     */
+    private static String parserSQL(String sql) {
+        return parserSQLByType(null, sql, null, null);
+    }
+
+
+    public static String parserSQLByType(String dbType, String sql, Object parameters) {
+        return parserSQLByType(dbType, sql, parameters, null);
+    }
+
+    public static String parserSQLByType(String dbType, String sql, Object parameters, Map<String, Object> query) {
         setQueryParamThreadLocal(query);
 
         try {
@@ -96,7 +131,7 @@ public class SqlUtil {
             Param.parsingPlaceHolder(sql);
 
             sql = sql.replace("<", "<  ");
-            sql = parserSQL(sql);
+            sql = parserSQLByType(dbType, sql);
 
             Map<String, Object> queryParams = QUERY_PARAM_THREAD_LOCAL.get();
             if (queryParams != null) {
@@ -111,15 +146,23 @@ public class SqlUtil {
                     }
                 }
 
-                for (Map.Entry<String, Object> e : queryParams.entrySet()) {
-                    String k = e.getKey();
-                    Object v = e.getValue();
-                    if (query != null) {
-                        sql = sql.replace(k, ":" + k);
-                    } else {
-                        String value = String.valueOf(v);
+                if (query != null) {
+                    String finalSql = sql;
+                    List<String> paramSortedList = queryParams.keySet().stream().sorted(Comparator.comparingInt(finalSql::indexOf)).collect(Collectors.toList());
+                    int i = 1;
+                    Map<String, Object> resolvedQueryParams = Maps.newHashMap();
+                    for (String param : paramSortedList) {
+                        sql = sql.replace(param, "?");
+                        Object v = queryParams.get(param);
+                        resolvedQueryParams.put(String.valueOf(i++), v);
+                    }
+                    queryParams.clear();
+                    queryParams.putAll(resolvedQueryParams);
+                } else {
+                    for (String param : queryParams.keySet()) {
+                        String value = String.valueOf(param);
                         Param.isIllegal(value);
-                        sql = sql.replace(k, value);
+                        sql = sql.replace(param, value);
                     }
                 }
             }
@@ -130,31 +173,30 @@ public class SqlUtil {
             QUERY_PARAM_THREAD_LOCAL.remove();
         }
 
-
         return sql;
     }
 
-    /**
-     * 根据给定参数动态生成完成参数占位的sql语句
-     *
-     * @param sql 原sql
-     * @return 生成的sql结果
-     */
-    private static String parserSQL(String sql) {
+    private static String parserSQLByType(String dbType, String sql) {
+        if (dbType == null) {
+            dbType = DB_TYPE_THREAD_LOCAL.get();
+            dbType = dbType == null ? JdbcConstants.MYSQL : dbType;
+        }
+        DB_TYPE_THREAD_LOCAL.set(dbType);
 
         // 新建 MySQL Parser
-        SQLStatementParser parser = SQLParserUtils.createSQLStatementParser(sql, JdbcConstants.MYSQL);
+        SQLStatementParser parser = SQLParserUtils.createSQLStatementParser(sql, dbType);
 
         // 使用Parser解析生成AST，这里SQLStatement就是AST
         SQLStatement statement = parser.parseStatement();
 
         // 使用visitor来访问AST
-        SchemaStatVisitor visitor = SQLUtils.createSchemaStatVisitor(JdbcConstants.MYSQL);
+        SchemaStatVisitor visitor = SQLUtils.createSchemaStatVisitor(dbType);
         statement.accept(visitor);
 
         parsingPart(statement);
 
-        return statement.toString();
+        DB_TYPE_THREAD_LOCAL.remove();
+        return SQLUtils.toSQLString(statement, dbType);
     }
 
     private static void parserInsert(SQLInsertStatement statement) {
@@ -252,13 +294,13 @@ public class SqlUtil {
     }
 
     public static SQLExpr parsingWhereConstant(SQLExpr sqlExpr) {
-        String where = SQLUtils.toMySqlString(sqlExpr);
+        String where = SQLUtils.toSQLString(sqlExpr, DB_TYPE_THREAD_LOCAL.get());
         where = where.replaceAll(CONSTANT_CONDITION_REGEX, "").trim();
         final int minSize = 3;
         if (where.trim().length() < minSize || CONSTANT_CONDITION.equals(where)) {
             return null;
         }
-        sqlExpr = SQLUtils.toMySqlExpr(where);
+        sqlExpr = SQLUtils.toSQLExpr(where, DB_TYPE_THREAD_LOCAL.get());
         if (where.contains(CONSTANT_CONDITION)) {
             return parsingWhereConstant(sqlExpr);
         } else {
@@ -290,6 +332,27 @@ public class SqlUtil {
             }
         } else if (from instanceof SQLUnionQueryTableSource) {
             parserQuery(((SQLUnionQueryTableSource) from).getUnion());
+        }
+    }
+
+    /**
+     * 替换类语句replace into
+     *
+     * @param replace 替换语句
+     */
+    private static void parsingSQLReplaceStatement(SQLReplaceStatement replace) {
+        for (SQLInsertStatement.ValuesClause valuesClause : replace.getValuesList()) {
+            List<SQLExpr> values = valuesClause.getValues();
+
+            List<Integer> indexs = Lists.newArrayList();
+            for (SQLExpr expr : values) {
+                if (Param.unprocessed(expr)) {
+                    indexs.add(values.indexOf(expr));
+                }
+            }
+            for (Integer i : indexs) {
+                values.add(i, new SQLIdentifierExpr(null));
+            }
         }
     }
 
@@ -371,6 +434,8 @@ public class SqlUtil {
             parserQuery((SQLSelectQuery) part);
         } else if (part instanceof SQLTableSource) {
             parsingTableSource((SQLTableSource) part);
+        } else if (part instanceof SQLReplaceStatement) {
+            parsingSQLReplaceStatement((SQLReplaceStatement) part);
         }
     }
 
@@ -381,7 +446,7 @@ public class SqlUtil {
      */
     private static void parsingInSubQuery(SQLInSubQueryExpr c) {
         SQLSelect sqlSelect = c.getSubQuery();
-        SQLStatementParser sqlStatementParser = SQLParserUtils.createSQLStatementParser(parserSQL(sqlSelect.toString()), JdbcConstants.MYSQL);
+        SQLStatementParser sqlStatementParser = SQLParserUtils.createSQLStatementParser(parserSQL(sqlSelect.toString()), DB_TYPE_THREAD_LOCAL.get());
         sqlSelect.setQuery(((SQLSelectStatement) sqlStatementParser.parseStatement()).getSelect().getQueryBlock());
     }
 
@@ -393,7 +458,7 @@ public class SqlUtil {
     public static List<SQLSelectOrderByItem> getSort(String sql) {
         List<SQLSelectOrderByItem> sorts = new ArrayList<>();
         // 新建 MySQL Parser
-        SQLStatementParser parser = SQLParserUtils.createSQLStatementParser(sql, JdbcConstants.MYSQL);
+        SQLStatementParser parser = SQLParserUtils.createSQLStatementParser(sql, DB_TYPE_THREAD_LOCAL.get());
         // 使用Parser解析生成AST，这里SQLStatement就是AST
         SQLStatement statement = parser.parseStatement();
         SQLSelectQueryBlock sqlSelectQueryBlock = ((SQLSelectStatement) statement).getSelect().getQueryBlock();
@@ -418,14 +483,14 @@ public class SqlUtil {
      */
     public static String getTableName(String sql) {
 
-        // 新建 MySQL Parser
-        SQLStatementParser parser = SQLParserUtils.createSQLStatementParser(sql, JdbcUtils.MYSQL);
+        // 新建 Parser
+        SQLStatementParser parser = SQLParserUtils.createSQLStatementParser(sql, DB_TYPE_THREAD_LOCAL.get());
 
         // 使用Parser解析生成AST，这里SQLStatement就是AST
         SQLStatement statement = parser.parseStatement();
 
         // 使用visitor来访问AST
-        MySqlSchemaStatVisitor visitor = new MySqlSchemaStatVisitor();
+        SchemaStatVisitor visitor = new SchemaStatVisitor(DB_TYPE_THREAD_LOCAL.get());
         statement.accept(visitor);
 
 
