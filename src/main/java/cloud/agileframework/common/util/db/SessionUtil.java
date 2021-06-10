@@ -3,6 +3,7 @@ package cloud.agileframework.common.util.db;
 import cloud.agileframework.common.util.clazz.TypeReference;
 import cloud.agileframework.common.util.object.ObjectUtil;
 import cloud.agileframework.sql.SqlUtil;
+import com.alibaba.druid.util.JdbcUtils;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import lombok.extern.slf4j.Slf4j;
@@ -50,7 +51,7 @@ public class SessionUtil {
         List<Map<String, Object>> list = Lists.newArrayList();
         try (
                 Statement statement = connection.createStatement();
-                ResultSet resultSet = statement.executeQuery(SqlUtil.parserSQL(sql, param))
+                ResultSet resultSet = statement.executeQuery(SqlUtil.parserSQLByType(JdbcUtils.getDbType(connection.getMetaData().getURL(), null), sql, param))
         ) {
             List<String> columns = Lists.newArrayList();
             ResultSetMetaData metaData = resultSet.getMetaData();
@@ -82,7 +83,8 @@ public class SessionUtil {
     private static <T> T preparedParseSql(Connection connection, String sql, Object param, Function<PreparedStatement, T> function) {
         Map<String, Object> params = Maps.newHashMap();
         try (
-                PreparedStatement statement = connection.prepareStatement(SqlUtil.parserSQL(sql, param, params));
+
+                PreparedStatement statement = connection.prepareStatement(SqlUtil.parserSQLByType(JdbcUtils.getDbType(connection.getMetaData().getURL(), null), sql, param, params));
         ) {
             for (Map.Entry<String, Object> e : params.entrySet()) {
                 statement.setObject(Integer.parseInt(e.getKey()), e.getValue());
@@ -134,12 +136,12 @@ public class SessionUtil {
      * @param sql        sql
      * @param params     sql的占位参数集合，一个元素就是一条数据
      */
-    public static void batchUpdate(Connection connection, String sql, List<Map<String, Object>> params) {
+    public static void batchUpdate(Connection connection, String sql, List<Map<String, Object>> params) throws SQLException {
 
         Map<String, List<Map<String, Object>>> batches = Maps.newHashMap();
         Map<String, Object> temp = Maps.newHashMap();
         for (Map<String, Object> map : params) {
-            String prepareSql = SqlUtil.parserSQL(sql, map, temp);
+            String prepareSql = SqlUtil.parserSQLByType(JdbcUtils.getDbType(connection.getMetaData().getURL(), null), sql, map, temp);
 
             List<Map<String, Object>> values = batches.get(prepareSql);
             if (values == null) {
