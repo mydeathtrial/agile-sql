@@ -37,7 +37,7 @@
 
 您可以从[最新稳定版本]下载包(https://github.com/mydeathtrial/agile-sql/releases). 该包已上传至maven中央仓库，可在pom中直接声明引用
 
-以版本agile-sql-2.0.11.jar为例。
+以版本agile-sql-2.1.0.M5.jar为例。
 
 #### 步骤 2: 添加maven依赖
 
@@ -53,7 +53,7 @@
 <dependency>
 <groupId>cloud.agileframework</groupId>
 <artifactId>agile-sql</artifactId>
-<version>2.0.11</version>
+<version>2.1.0.M5</version>
 </dependency>
 ```
 
