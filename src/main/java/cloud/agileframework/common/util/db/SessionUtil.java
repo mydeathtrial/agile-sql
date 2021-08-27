@@ -51,7 +51,7 @@ public class SessionUtil {
         List<Map<String, Object>> list = Lists.newArrayList();
         try (
                 Statement statement = connection.createStatement();
-                ResultSet resultSet = statement.executeQuery(SqlUtil.parserSQLByType(JdbcUtils.getDbType(connection.getMetaData().getURL(), null), sql, param))
+                ResultSet resultSet = statement.executeQuery(SqlUtil.parserSQLByType(JdbcUtils.getDbTypeRaw(connection.getMetaData().getURL(), null), sql, param))
         ) {
             List<String> columns = Lists.newArrayList();
             ResultSetMetaData metaData = resultSet.getMetaData();
@@ -84,7 +84,7 @@ public class SessionUtil {
         Map<String, Object> params = Maps.newHashMap();
         try (
 
-                PreparedStatement statement = connection.prepareStatement(SqlUtil.parserSQLByType(JdbcUtils.getDbType(connection.getMetaData().getURL(), null), sql, param, params));
+                PreparedStatement statement = connection.prepareStatement(SqlUtil.parserSQLByType(JdbcUtils.getDbTypeRaw(connection.getMetaData().getURL(), null), sql, param, params));
         ) {
             for (Map.Entry<String, Object> e : params.entrySet()) {
                 statement.setObject(Integer.parseInt(e.getKey()), e.getValue());
@@ -141,7 +141,7 @@ public class SessionUtil {
         Map<String, List<Map<String, Object>>> batches = Maps.newHashMap();
         Map<String, Object> temp = Maps.newHashMap();
         for (Map<String, Object> map : params) {
-            String prepareSql = SqlUtil.parserSQLByType(JdbcUtils.getDbType(connection.getMetaData().getURL(), null), sql, map, temp);
+            String prepareSql = SqlUtil.parserSQLByType(JdbcUtils.getDbTypeRaw(connection.getMetaData().getURL(), null), sql, map, temp);
 
             List<Map<String, Object>> values = batches.get(prepareSql);
             if (values == null) {

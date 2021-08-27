@@ -1,5 +1,6 @@
 package cloud.agileframework.sql;
 
+import com.alibaba.druid.DbType;
 import com.alibaba.druid.sql.SQLUtils;
 import com.alibaba.druid.sql.ast.SQLExpr;
 import com.alibaba.druid.sql.ast.SQLObject;
@@ -64,19 +65,19 @@ public class SqlUtil {
     public static final String CONSTANT_CONDITION = "1 = 1";
 
     private static final ThreadLocal<Map<String, Object>> QUERY_PARAM_THREAD_LOCAL = new ThreadLocal<>();
-    public static final ThreadLocal<String> DB_TYPE_THREAD_LOCAL = new ThreadLocal<>();
+    public static final ThreadLocal<DbType> DB_TYPE_THREAD_LOCAL = new ThreadLocal<>();
 
-    public static String parserCountSQLByType(String dbType, String sql, Object parameters, Map<String, Object> query) {
+    public static String parserCountSQLByType(DbType dbType, String sql, Object parameters, Map<String, Object> query) {
         sql = parserSQLByType(dbType, sql, parameters, query);
 
         return String.format("select count(1) from (%s) _select_table", sql);
     }
 
-    public static String parserCountSQLByType(String dbType, String sql, Object parameters) {
+    public static String parserCountSQLByType(DbType dbType, String sql, Object parameters) {
         return parserCountSQLByType(dbType, sql, parameters, null);
     }
 
-    public static String parserCountSQLByType(String dbType, String sql) {
+    public static String parserCountSQLByType(DbType dbType, String sql) {
         return parserCountSQLByType(dbType, sql, null, null);
     }
 
@@ -118,11 +119,11 @@ public class SqlUtil {
     }
 
 
-    public static String parserSQLByType(String dbType, String sql, Object parameters) {
+    public static String parserSQLByType(DbType dbType, String sql, Object parameters) {
         return parserSQLByType(dbType, sql, parameters, null);
     }
 
-    public static String parserSQLByType(String dbType, String sql, Object parameters, Map<String, Object> query) {
+    public static String parserSQLByType(DbType dbType, String sql, Object parameters, Map<String, Object> query) {
         setQueryParamThreadLocal(query);
 
         try {
@@ -176,7 +177,7 @@ public class SqlUtil {
         return sql;
     }
 
-    private static String parserSQLByType(String dbType, String sql) {
+    private static String parserSQLByType(DbType dbType, String sql) {
         if (dbType == null) {
             dbType = DB_TYPE_THREAD_LOCAL.get();
             dbType = dbType == null ? JdbcConstants.MYSQL : dbType;
