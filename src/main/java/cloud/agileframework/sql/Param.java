@@ -32,6 +32,7 @@ import java.util.function.Consumer;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
+import java.util.Iterator;
 
 import static com.alibaba.druid.sql.ast.expr.SQLBinaryOperator.Equality;
 
@@ -296,11 +297,12 @@ public class Param {
             throw new ParserException("插入的字段数量与值数量不一致");
         }
 
-        for (int i = 0; i < columns.size(); i++) {
-            SQLExpr column = columns.get(i);
-            SQLExpr valueSQLExpr = values.get(i);
+        Iterator<SQLExpr> it = columns.iterator();
+        while (it.hasNext()){
+            SQLExpr column = it.next();
+            SQLExpr valueSQLExpr = values.get(columns.indexOf(column));
             if (unprocessed(column) || unprocessed(valueSQLExpr)) {
-                columns.remove(column);
+                it.remove();
                 values.remove(valueSQLExpr);
             }
         }
