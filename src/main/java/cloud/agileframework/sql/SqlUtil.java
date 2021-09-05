@@ -36,6 +36,8 @@ import com.alibaba.druid.util.JdbcConstants;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import lombok.extern.slf4j.Slf4j;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -53,8 +55,8 @@ import java.util.stream.Collectors;
  * @version 1.0
  * @since 1.0
  */
-@Slf4j
 public class SqlUtil {
+    private static Logger log = LoggerFactory.getLogger(SqlUtil.class);
     /**
      * 常量表达式正则
      */

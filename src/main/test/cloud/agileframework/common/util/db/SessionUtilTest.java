@@ -16,7 +16,7 @@ public class SessionUtilTest extends TestCase {
 
     public void testUpdate() throws SQLException {
         Connection connection = DataBaseUtil.getConnection(
-                "jdbc:mysql://127.0.0.1:3306/am?serverTimezone=GMT%2B8&useSSL=false&useUnicode=true&characterEncoding=utf-8&zeroDateTimeBehavior=CONVERT_TO_NULL&autoReconnect=true&allowPublicKeyRetrieval=true",
+                "jdbc:h2:~/projectdb;AUTO_SERVER=TRUE;DB_CLOSE_DELAY=-1",
                 "root",
                 "123456");
 

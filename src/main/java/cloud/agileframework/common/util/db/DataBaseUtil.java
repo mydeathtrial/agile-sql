@@ -322,12 +322,43 @@ public class DataBaseUtil {
     /**
      * 数据库信息
      */
-    @Data
     public static class DBInfo {
         private DB type;
         private String ip;
         private String port;
         private String name;
+
+        public DB getType() {
+            return type;
+        }
+
+        public void setType(DB type) {
+            this.type = type;
+        }
+
+        public String getIp() {
+            return ip;
+        }
+
+        public void setIp(String ip) {
+            this.ip = ip;
+        }
+
+        public String getPort() {
+            return port;
+        }
+
+        public void setPort(String port) {
+            this.port = port;
+        }
+
+        public String getName() {
+            return name;
+        }
+
+        public void setName(String name) {
+            this.name = name;
+        }
     }
 
     /**
