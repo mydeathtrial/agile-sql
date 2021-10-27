@@ -1,5 +1,6 @@
 package cloud.agileframework.sql;
 
+import cloud.agileframework.common.constant.Constant;
 import cloud.agileframework.common.util.json.JSONUtil;
 import cloud.agileframework.common.util.object.ObjectUtil;
 import cloud.agileframework.common.util.string.StringUtil;
@@ -51,6 +52,7 @@ public class Param {
     public static final String PARAM_START = "@_START_";
     public static final String PARAM_INDEX = "_INDEX";
     public static final String PARAM_END = "_END_";
+    public static final String PARAM_SPLIT = "_SPLIT_";
     public static final String NOT_FOUND_PARAM = "@NOT_FOUND_PARAM_";
     public static final String REPLACE_NULL_CONDITION = " 1=1 ";
     private final String placeHolder;
@@ -61,7 +63,7 @@ public class Param {
 
     public Param(String key, Object value) {
 
-        this.placeHolder = PARAM_START + key + PARAM_END;
+        this.placeHolder = PARAM_START + key.replace(Constant.RegularAbout.SPOT,PARAM_SPLIT) + PARAM_END;
         THREAD_LOCAL.get().put(placeHolder, value);
     }
 
