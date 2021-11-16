@@ -99,6 +99,17 @@ public class DataBaseUtil {
 
                     rs = meta.getPrimaryKeys(null, schemaPattern, pattern);
                     break;
+                case FK:
+                    pattern = pattern.toUpperCase();
+                    if (DB.ORACLE == dbInfo.type) {
+                        schemaPattern = username;
+                        if (null != schemaPattern) {
+                            schemaPattern = schemaPattern.toUpperCase();
+                        }
+                    }
+
+                    rs = meta.getExportedKeys(null, schemaPattern, pattern);
+                    break;
                 default:
             }
         } catch (Exception e) {
@@ -145,6 +156,13 @@ public class DataBaseUtil {
      */
     public static List<Map<String, Object>> listPrimayKeys(String url, String username, String password, String tableName) {
         return getDBInfo(PATTERN.PRIMARY_KEY, url, username, password, tableName);
+    }
+
+    /**
+     * 列出表的所有外键
+     */
+    public static List<Map<String, Object>> listFKeys(String url, String username, String password, String tableName) {
+        return getDBInfo(PATTERN.FK, url, username, password, tableName);
     }
 
     /**
@@ -400,7 +418,11 @@ public class DataBaseUtil {
         /**
          * 主键
          */
-        PRIMARY_KEY
+        PRIMARY_KEY,
+        /**
+         * 外键
+         */
+        FK
     }
 
 
