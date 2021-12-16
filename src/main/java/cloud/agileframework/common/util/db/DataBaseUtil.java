@@ -5,10 +5,6 @@ import cloud.agileframework.common.constant.Constant;
 import cloud.agileframework.common.util.clazz.TypeReference;
 import cloud.agileframework.common.util.object.ObjectUtil;
 import cloud.agileframework.common.util.pattern.PatternUtil;
-import cloud.agileframework.sql.SqlUtil;
-import com.google.common.collect.Lists;
-import com.google.common.collect.Maps;
-import lombok.Data;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -18,7 +14,6 @@ import java.sql.DriverManager;
 import java.sql.ResultSet;
 import java.sql.ResultSetMetaData;
 import java.sql.SQLException;
-import java.sql.Statement;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -99,7 +94,7 @@ public class DataBaseUtil {
 
                     rs = meta.getPrimaryKeys(null, schemaPattern, pattern);
                     break;
-                case FK:
+                case FK_EXPORT:
                     pattern = pattern.toUpperCase();
                     if (DB.ORACLE == dbInfo.type) {
                         schemaPattern = username;
@@ -109,6 +104,17 @@ public class DataBaseUtil {
                     }
 
                     rs = meta.getExportedKeys(null, schemaPattern, pattern);
+                    break;
+                case FK_IMPORT:
+                    pattern = pattern.toUpperCase();
+                    if (DB.ORACLE == dbInfo.type) {
+                        schemaPattern = username;
+                        if (null != schemaPattern) {
+                            schemaPattern = schemaPattern.toUpperCase();
+                        }
+                    }
+
+                    rs = meta.getImportedKeys(null, schemaPattern, pattern);
                     break;
                 default:
             }
@@ -162,7 +168,14 @@ public class DataBaseUtil {
      * 列出表的所有外键
      */
     public static List<Map<String, Object>> listFKeys(String url, String username, String password, String tableName) {
-        return getDBInfo(PATTERN.FK, url, username, password, tableName);
+        return getDBInfo(PATTERN.FK_EXPORT, url, username, password, tableName);
+    }
+
+    /**
+     * 列出表的所有外键
+     */
+    public static List<Map<String, Object>> listFImportKeys(String url, String username, String password, String tableName) {
+        return getDBInfo(PATTERN.FK_IMPORT, url, username, password, tableName);
     }
 
     /**
@@ -422,7 +435,8 @@ public class DataBaseUtil {
         /**
          * 外键
          */
-        FK
+        FK_EXPORT,
+        FK_IMPORT
     }
 
 
