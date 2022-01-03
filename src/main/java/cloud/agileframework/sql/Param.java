@@ -144,8 +144,8 @@ public class Param {
      * @return 处理过的sql
      */
     public static String parsingSqlString(String sql, Object params) {
-        sql = StringUtil.parsingPlaceholder("${", "}", ":", sql, params, NOT_FOUND_PARAM);
-        return parsingPlaceholder("{", "}", ":", sql, params, NOT_FOUND_PARAM);
+        sql = parsingPlaceholder("${", "}", ":", sql, params, NOT_FOUND_PARAM);
+        return parsingPlaceholder("#{", "}", ":", sql, params, NOT_FOUND_PARAM);
     }
 
     private static String parsingPlaceholder(String openToken, String closeToken, String equalToken, String text, Object args, String replaceNull) {

@@ -1,50 +1,28 @@
 package cloud.agileframework.sql;
 
+import cloud.agileframework.common.util.number.NumberUtil;
+import cloud.agileframework.common.util.other.BooleanUtil;
 import com.alibaba.druid.DbType;
+import com.alibaba.druid.sql.PagerUtils;
 import com.alibaba.druid.sql.SQLUtils;
 import com.alibaba.druid.sql.ast.SQLExpr;
 import com.alibaba.druid.sql.ast.SQLObject;
 import com.alibaba.druid.sql.ast.SQLOrderBy;
 import com.alibaba.druid.sql.ast.SQLStatement;
-import com.alibaba.druid.sql.ast.expr.SQLBetweenExpr;
-import com.alibaba.druid.sql.ast.expr.SQLBinaryOpExpr;
-import com.alibaba.druid.sql.ast.expr.SQLIdentifierExpr;
-import com.alibaba.druid.sql.ast.expr.SQLInListExpr;
-import com.alibaba.druid.sql.ast.expr.SQLInSubQueryExpr;
-import com.alibaba.druid.sql.ast.expr.SQLMethodInvokeExpr;
-import com.alibaba.druid.sql.ast.expr.SQLPropertyExpr;
-import com.alibaba.druid.sql.ast.statement.SQLDeleteStatement;
-import com.alibaba.druid.sql.ast.statement.SQLExprTableSource;
-import com.alibaba.druid.sql.ast.statement.SQLInsertStatement;
-import com.alibaba.druid.sql.ast.statement.SQLJoinTableSource;
-import com.alibaba.druid.sql.ast.statement.SQLReplaceStatement;
-import com.alibaba.druid.sql.ast.statement.SQLSelect;
-import com.alibaba.druid.sql.ast.statement.SQLSelectGroupByClause;
-import com.alibaba.druid.sql.ast.statement.SQLSelectOrderByItem;
-import com.alibaba.druid.sql.ast.statement.SQLSelectQuery;
-import com.alibaba.druid.sql.ast.statement.SQLSelectQueryBlock;
-import com.alibaba.druid.sql.ast.statement.SQLSelectStatement;
-import com.alibaba.druid.sql.ast.statement.SQLSubqueryTableSource;
-import com.alibaba.druid.sql.ast.statement.SQLTableSource;
-import com.alibaba.druid.sql.ast.statement.SQLUnionQuery;
-import com.alibaba.druid.sql.ast.statement.SQLUnionQueryTableSource;
-import com.alibaba.druid.sql.ast.statement.SQLUpdateStatement;
+import com.alibaba.druid.sql.ast.expr.*;
+import com.alibaba.druid.sql.ast.statement.*;
 import com.alibaba.druid.sql.parser.SQLParserUtils;
 import com.alibaba.druid.sql.parser.SQLStatementParser;
 import com.alibaba.druid.sql.visitor.SchemaStatVisitor;
 import com.alibaba.druid.util.JdbcConstants;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
-import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.lang3.math.NumberUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.ArrayList;
-import java.util.Comparator;
-import java.util.Iterator;
-import java.util.LinkedList;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
+import java.util.function.BiFunction;
 import java.util.stream.Collectors;
 
 /**
@@ -56,7 +34,6 @@ import java.util.stream.Collectors;
  * @since 1.0
  */
 public class SqlUtil {
-    private static Logger log = LoggerFactory.getLogger(SqlUtil.class);
     /**
      * 常量表达式正则
      */
@@ -65,22 +42,20 @@ public class SqlUtil {
      * 常量表达式
      */
     public static final String CONSTANT_CONDITION = "1 = 1";
-
-    private static final ThreadLocal<Map<String, Object>> QUERY_PARAM_THREAD_LOCAL = new ThreadLocal<>();
     public static final ThreadLocal<DbType> DB_TYPE_THREAD_LOCAL = new ThreadLocal<>();
+    private static final ThreadLocal<Map<String, Object>> QUERY_PARAM_THREAD_LOCAL = new ThreadLocal<>();
+    private static Logger log = LoggerFactory.getLogger(SqlUtil.class);
 
     public static String parserCountSQLByType(DbType dbType, String sql, Object parameters, Map<String, Object> query) {
-        sql = parserSQLByType(dbType, sql, parameters, query);
-
-        return String.format("select count(1) from (%s) _select_table", sql);
+        return parserSQLByType(dbType, sql, parameters, query, (a, b) -> PagerUtils.count(b, a));
     }
 
     public static String parserCountSQLByType(DbType dbType, String sql, Object parameters) {
-        return parserCountSQLByType(dbType, sql, parameters, null);
+        return parserSQLByType(dbType, sql, parameters, null, (a, b) -> PagerUtils.count(b, a));
     }
 
     public static String parserCountSQLByType(DbType dbType, String sql) {
-        return parserCountSQLByType(dbType, sql, null, null);
+        return parserSQLByType(dbType, sql, null, null, (a, b) -> PagerUtils.count(b, a));
     }
 
     /**
@@ -91,15 +66,15 @@ public class SqlUtil {
      * @return 生成的sql结果
      */
     public static String parserCountSQL(String sql, Object parameters, Map<String, Object> query) {
-        return parserCountSQLByType(null, sql, parameters, query);
+        return parserSQLByType(null, sql, parameters, query, (a, b) -> PagerUtils.count(b, a));
     }
 
     public static String parserCountSQL(String sql) {
-        return parserCountSQLByType(null, sql, null, null);
+        return parserSQLByType(null, sql, null, null, (a, b) -> PagerUtils.count(b, a));
     }
 
     public static String parserCountSQL(String sql, Object parameters) {
-        return parserCountSQLByType(null, sql, parameters, null);
+        return parserSQLByType(null, sql, parameters, null, (a, b) -> PagerUtils.count(b, a));
     }
 
     public static String parserSQL(String sql, Object parameters) {
@@ -125,7 +100,28 @@ public class SqlUtil {
         return parserSQLByType(dbType, sql, parameters, null);
     }
 
+    public static String parserLimitSQLByType(DbType dbType, String sql, Object parameters, int offset, int count) {
+        return parserSQLByType(dbType, sql, parameters, null, (a, b) -> PagerUtils.limit(b, a, offset, count));
+    }
+
+    public static String parserLimitSQLByType(DbType dbType, String sql, int offset, int count, Map<String, Object> query) {
+        return parserSQLByType(dbType, sql, null, query, (a, b) -> PagerUtils.limit(b, a, offset, count));
+    }
+
+    public static String parserLimitSQLByType(DbType dbType, String sql, int offset, int count) {
+        return parserSQLByType(dbType, sql, null, null, (a, b) -> PagerUtils.limit(b, a, offset, count));
+    }
+
+    public static String parserLimitSQLByType(DbType dbType, String sql, Object parameters, int offset, int count, Map<String, Object> query) {
+        return parserSQLByType(dbType, sql, parameters, query, (a, b) -> PagerUtils.limit(b, a, offset, count));
+    }
+
     public static String parserSQLByType(DbType dbType, String sql, Object parameters, Map<String, Object> query) {
+        return parserSQLByType(dbType, sql, parameters, query, (a, b) -> b);
+    }
+
+    public static String parserSQLByType(DbType dbType, String sql, Object parameters, Map<String, Object> query, BiFunction<DbType, String, String> machining) {
+        dbType = dbType == null ? DbType.mysql : dbType;
         setQueryParamThreadLocal(query);
 
         try {
@@ -135,7 +131,8 @@ public class SqlUtil {
 
             sql = sql.replace("<", "<  ");
             sql = parserSQLByType(dbType, sql);
-
+            //额外加工，如分页与统计之类
+            sql = machining.apply(dbType, sql);
             Map<String, Object> queryParams = QUERY_PARAM_THREAD_LOCAL.get();
             if (queryParams != null) {
                 Iterator<Map.Entry<String, Object>> it = queryParams.entrySet().iterator();
@@ -163,9 +160,14 @@ public class SqlUtil {
                     queryParams.putAll(resolvedQueryParams);
                 } else {
                     for (String param : queryParams.keySet()) {
-                        String value = String.valueOf(param);
-                        Param.isIllegal(value);
-                        sql = sql.replace(param, value);
+                        String value = String.valueOf(queryParams.get(param));
+                        if (NumberUtils.isParsable(value)) {
+                            sql = sql.replace(param, SQLUtils.toSQLString(new SQLIntegerExpr(NumberUtil.createNumber(value)), dbType));
+                        } else if ("true".equals(value) || "false".equals(value)) {
+                            sql = sql.replace(param, SQLUtils.toSQLString(new SQLBooleanExpr(BooleanUtil.toBoolean(value)), dbType));
+                        } else {
+                            sql = sql.replace(param, SQLUtils.toSQLString(new SQLCharExpr(value), dbType));
+                        }
                     }
                 }
             }
@@ -199,7 +201,7 @@ public class SqlUtil {
         parsingPart(statement);
 
         DB_TYPE_THREAD_LOCAL.remove();
-        return SQLUtils.toSQLString(statement, dbType);
+        return SQLUtils.toSQLString(statement, dbType, new SQLUtils.FormatOption(true, false));
     }
 
     private static void parserInsert(SQLInsertStatement statement) {
