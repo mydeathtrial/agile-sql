@@ -38,12 +38,12 @@ public class SessionUtil {
      * @param <T>        泛型
      * @return 集合
      */
-    public static <T> List<T> query(Connection connection, String sql, Class<T> clazz, Object param) {
+    public static <T> List<T> query(Connection connection, String sql, Class<T> clazz, Object param) throws SQLException {
         List<Map<String, Object>> temp = query(connection, sql, param);
         return toJavaObjectList(clazz, temp);
     }
 
-    public static <T> List<T> query(Connection connection, String sql, Class<T> clazz) {
+    public static <T> List<T> query(Connection connection, String sql, Class<T> clazz) throws SQLException {
         List<Map<String, Object>> temp = query(connection, sql, Maps.newHashMap());
         return toJavaObjectList(clazz, temp);
     }
@@ -56,39 +56,39 @@ public class SessionUtil {
      * @param param      sql占位参数
      * @return 数据
      */
-    public static List<Map<String, Object>> query(Connection connection, String sql, Object param) {
+    public static List<Map<String, Object>> query(Connection connection, String sql, Object param) throws SQLException {
         String newSql = parseSql(connection, sql, param);
         return execute(connection, newSql);
     }
 
-    public static List<Map<String, Object>> query(Connection connection, String sql) {
+    public static List<Map<String, Object>> query(Connection connection, String sql) throws SQLException {
         String newSql = parseSql(connection, sql, null);
         return execute(connection, newSql);
     }
 
 //--------------------------------分页-----------------------------------------------
 
-    public static <T> List<T> limit(Connection connection, String sql, Class<T> clazz, Object param, int offset, int count) {
+    public static <T> List<T> limit(Connection connection, String sql, Class<T> clazz, Object param, int offset, int count) throws SQLException {
         List<Map<String, Object>> list = execute(connection, parseLimitSql(connection, sql, param, offset, count));
         return toJavaObjectList(clazz, list);
     }
 
-    public static <T> List<T> limit(Connection connection, String sql, Class<T> clazz, int offset, int count) {
+    public static <T> List<T> limit(Connection connection, String sql, Class<T> clazz, int offset, int count) throws SQLException {
         List<Map<String, Object>> list = execute(connection, parseLimitSql(connection, sql, null, offset, count));
         return toJavaObjectList(clazz, list);
     }
 
-    public static List<Map<String, Object>> limit(Connection connection, String sql, Object param, int offset, int count) {
+    public static List<Map<String, Object>> limit(Connection connection, String sql, Object param, int offset, int count) throws SQLException {
         return execute(connection, parseLimitSql(connection, sql, param, offset, count));
     }
 
-    public static List<Map<String, Object>> limit(Connection connection, String sql, int offset, int count) {
+    public static List<Map<String, Object>> limit(Connection connection, String sql, int offset, int count) throws SQLException {
         return execute(connection, parseLimitSql(connection, sql, null, offset, count));
     }
 
 //--------------------------------统计-----------------------------------------------
 
-    public static long count(Connection connection, String sql, Object param) {
+    public static long count(Connection connection, String sql, Object param) throws SQLException {
         List<Map<String, Object>> list = execute(connection, parseCountSql(connection, sql, param));
         if (list.isEmpty()) {
             return 0;
@@ -96,7 +96,7 @@ public class SessionUtil {
         return Long.parseLong(list.stream().flatMap(a -> a.values().stream()).findFirst().orElse("0").toString());
     }
 
-    public static long count(Connection connection, String sql) {
+    public static long count(Connection connection, String sql) throws SQLException {
         List<Map<String, Object>> list = execute(connection, parseCountSql(connection, sql, null));
         if (list.isEmpty()) {
             return 0;
@@ -116,45 +116,27 @@ public class SessionUtil {
         if (data.isEmpty()) {
             return Lists.newArrayList();
         }
-        if (ClassUtil.isWrapOrPrimitive(clazz) || Date.class.isAssignableFrom(clazz)|| String.class==clazz) {
+        if (ClassUtil.isWrapOrPrimitive(clazz) || Date.class.isAssignableFrom(clazz) || String.class == clazz) {
             return data.stream().flatMap(n -> n.values().stream()).map(a -> (T) ObjectUtil.to(a, new TypeReference<>(clazz))).collect(Collectors.toList());
         }
         return data.parallelStream().map(a -> (T) ObjectUtil.to(a, new TypeReference<>(clazz))).collect(Collectors.toList());
     }
 
     //--------------------------------三种sql语句------------------------------------------
-    private static String parseSql(Connection connection, String sql, Object param) {
-        String newSql = sql;
-        try {
-            DbType dbType = JdbcUtils.getDbTypeRaw(connection.getMetaData().getURL(), null);
-            newSql = SqlUtil.parserSQLByType(dbType, sql, param);
-        } catch (SQLException e) {
-            e.printStackTrace();
-        }
-        return newSql;
+    private static String parseSql(Connection connection, String sql, Object param) throws SQLException {
+        DbType dbType = JdbcUtils.getDbTypeRaw(connection.getMetaData().getURL(), null);
+        return SqlUtil.parserSQLByType(dbType, sql, param);
     }
 
-    private static String parseLimitSql(Connection connection, String sql, Object param, int offset, int count) {
-        String newSql = sql;
-        try {
-            DbType dbType = JdbcUtils.getDbTypeRaw(connection.getMetaData().getURL(), null);
-            newSql = SqlUtil.parserLimitSQLByType(dbType, sql, param, offset, count);
-        } catch (SQLException e) {
-            e.printStackTrace();
-        }
-        return newSql;
+    private static String parseLimitSql(Connection connection, String sql, Object param, int offset, int count) throws SQLException {
+        DbType dbType = JdbcUtils.getDbTypeRaw(connection.getMetaData().getURL(), null);
+        return SqlUtil.parserLimitSQLByType(dbType, sql, param, offset, count);
     }
 
 
-    private static String parseCountSql(Connection connection, String sql, Object param) {
-        String newSql = sql;
-        try {
-            DbType dbType = JdbcUtils.getDbTypeRaw(connection.getMetaData().getURL(), null);
-            newSql = SqlUtil.parserCountSQLByType(dbType, sql, param);
-        } catch (SQLException e) {
-            e.printStackTrace();
-        }
-        return newSql;
+    private static String parseCountSql(Connection connection, String sql, Object param) throws SQLException {
+        DbType dbType = JdbcUtils.getDbTypeRaw(connection.getMetaData().getURL(), null);
+        return SqlUtil.parserCountSQLByType(dbType, sql, param);
     }
 
     //---------------------------------执行器-------------------------------------------
@@ -183,12 +165,12 @@ public class SessionUtil {
             }
 
         } catch (Exception e) {
-            e.printStackTrace();
+            throw new RuntimeException(e);
         }
         return list;
     }
 
-    private static <T> T preparedParseSql(Connection connection, String sql, Object param, Function<PreparedStatement, T> function) {
+    private static <T> T preparedParseSql(Connection connection, String sql, Object param, Function<PreparedStatement, T> function) throws SQLException {
         Map<String, Object> params = Maps.newHashMap();
         try (
                 PreparedStatement statement = connection.prepareStatement(SqlUtil.parserSQLByType(JdbcUtils.getDbTypeRaw(connection.getMetaData().getURL(), null), sql, param, params));
@@ -198,17 +180,14 @@ public class SessionUtil {
             }
 
             return function.apply(statement);
-        } catch (Exception e) {
-            e.printStackTrace();
         }
-        return null;
     }
 
-    public static int update(Connection connection, String sql) {
+    public static int update(Connection connection, String sql) throws SQLException {
         return update(connection, sql, Maps.newHashMap());
     }
 
-    public static int update(Connection connection, String sql, Object param) {
+    public static int update(Connection connection, String sql, Object param) throws SQLException {
         Integer count = preparedParseSql(connection, sql, param, a -> {
             if (a == null) {
                 return 0;
@@ -216,14 +195,13 @@ public class SessionUtil {
             try {
                 return a.executeUpdate();
             } catch (SQLException throwable) {
-                throwable.printStackTrace();
+                throw new RuntimeException(throwable);
             }
-            return 0;
         });
         return count == null ? 0 : count;
     }
 
-    public static void batchUpdate(Connection connection, List<String> sql) {
+    public static void batchUpdate(Connection connection, List<String> sql) throws SQLException {
         try (
                 Statement statement = connection.createStatement();
         ) {
@@ -231,8 +209,6 @@ public class SessionUtil {
                 statement.addBatch(s);
             }
             statement.executeBatch();
-        } catch (Exception e) {
-            e.printStackTrace();
         }
     }
 
@@ -270,8 +246,6 @@ public class SessionUtil {
                     statement.addBatch();
                 }
                 statement.executeBatch();
-            } catch (Exception e) {
-                e.printStackTrace();
             }
         }
     }
