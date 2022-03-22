@@ -69,7 +69,7 @@ public class DataBaseUtil {
                     }
                     break;
                 case COLUMN:
-                    pattern = pattern.toUpperCase();
+//                    pattern = pattern.toUpperCase();
                     String columnNamePattern = null;
                     if (DB.ORACLE == dbInfo.type) {
                         schemaPattern = username;
