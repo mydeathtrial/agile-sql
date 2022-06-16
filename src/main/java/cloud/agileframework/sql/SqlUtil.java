@@ -2,6 +2,7 @@ package cloud.agileframework.sql;
 
 import cloud.agileframework.common.util.number.NumberUtil;
 import cloud.agileframework.common.util.other.BooleanUtil;
+import cloud.agileframework.common.util.template.VelocityUtil;
 import com.alibaba.druid.DbType;
 import com.alibaba.druid.sql.PagerUtils;
 import com.alibaba.druid.sql.SQLUtils;
@@ -120,16 +121,23 @@ public class SqlUtil {
         return parserSQLByType(dbType, sql, parameters, query, (a, b) -> b);
     }
 
-    public static String parserSQLByType(DbType dbType, String sql, Object parameters, Map<String, Object> query, BiFunction<DbType, String, String> machining) {
+    public static String parserSQLByType(DbType dbType, String sqlSource, Object parameters, Map<String, Object> query, BiFunction<DbType, String, String> machining) {
         dbType = dbType == null ? DbType.mysql : dbType;
         setQueryParamThreadLocal(query);
+        String sql = sqlSource;
 
         try {
+            sql = VelocityUtil.parse(sqlSource, parameters);
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        try {
+
             sql = Param.parsingSqlString(sql, Param.parsingParam(parameters));
 
             Param.parsingPlaceHolder(sql);
 
-            sql = sql.replace("<", "<  ");
+            sql = sql.replace("< @", "<  @");
             sql = parserSQLByType(dbType, sql);
             //额外加工，如分页与统计之类
             sql = machining.apply(dbType, sql);
