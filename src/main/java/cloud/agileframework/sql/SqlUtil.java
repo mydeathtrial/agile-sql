@@ -18,6 +18,7 @@ import com.alibaba.druid.sql.visitor.SchemaStatVisitor;
 import com.alibaba.druid.util.JdbcConstants;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
+import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.math.NumberUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -160,9 +161,11 @@ public class SqlUtil {
                     int i = 1;
                     Map<String, Object> resolvedQueryParams = Maps.newHashMap();
                     for (String param : paramSortedList) {
-                        sql = sql.replace(param, "?");
-                        Object v = queryParams.get(param);
-                        resolvedQueryParams.put(String.valueOf(i++), v);
+                        while (sql.contains(param)){
+                            sql = StringUtils.replaceOnce(sql,param,"?");
+                            Object v = queryParams.get(param);
+                            resolvedQueryParams.put(String.valueOf(i++), v);
+                        }
                     }
                     queryParams.clear();
                     queryParams.putAll(resolvedQueryParams);
