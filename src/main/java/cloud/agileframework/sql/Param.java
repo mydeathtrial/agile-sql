@@ -25,6 +25,7 @@ import java.lang.reflect.Array;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -33,7 +34,6 @@ import java.util.function.Consumer;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
-import java.util.Iterator;
 
 import static com.alibaba.druid.sql.ast.expr.SQLBinaryOperator.Equality;
 
@@ -63,7 +63,7 @@ public class Param {
 
     public Param(String key, Object value) {
 
-        this.placeHolder = PARAM_START + key.replace(Constant.RegularAbout.SPOT,PARAM_SPLIT) + PARAM_END;
+        this.placeHolder = PARAM_START + key.replace(Constant.RegularAbout.SPOT, PARAM_SPLIT) + PARAM_END;
         THREAD_LOCAL.get().put(placeHolder, value);
     }
 
@@ -300,7 +300,7 @@ public class Param {
         }
 
         Iterator<SQLExpr> it = columns.iterator();
-        while (it.hasNext()){
+        while (it.hasNext()) {
             SQLExpr column = it.next();
             SQLExpr valueSQLExpr = values.get(columns.indexOf(column));
             if (unprocessed(column) || unprocessed(valueSQLExpr)) {

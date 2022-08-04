@@ -6,19 +6,14 @@ import com.alibaba.druid.sql.builder.SQLBuilderFactory;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import junit.framework.TestCase;
-import lombok.SneakyThrows;
-import org.apache.calcite.adapter.elasticsearch.ElasticsearchRel;
-import org.apache.calcite.adapter.elasticsearch.ElasticsearchSchemaFactory;
 import org.apache.calcite.config.Lex;
 import org.apache.calcite.sql.SqlNode;
 import org.apache.calcite.sql.dialect.HiveSqlDialect;
-import org.apache.calcite.sql.dialect.OracleSqlDialect;
 import org.apache.calcite.sql.parser.SqlParseException;
 import org.apache.calcite.sql.parser.SqlParser;
 
 import java.sql.Connection;
 import java.sql.SQLException;
-import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -31,15 +26,15 @@ public class SessionUtilTest extends TestCase {
                 "root",
                 "123456");
 
-        List<Map<String,Object>> list = Lists.newArrayList();
-        int i =10000;
-        while (i>0){
+        List<Map<String, Object>> list = Lists.newArrayList();
+        int i = 10000;
+        while (i > 0) {
             HashMap<String, Object> map = Maps.newHashMap();
             map.put("id", IDUtil.generatorId());
-            map.put("name", "test"+(i--));
+            map.put("name", "test" + (i--));
             list.add(map);
         }
-        SessionUtil.batchUpdate(connection,"insert into sys_api (sys_api_id,name) values ({id},{name})",list);
+        SessionUtil.batchUpdate(connection, "insert into sys_api (sys_api_id,name) values ({id},{name})", list);
     }
 
     public void testGenerate() throws SqlParseException {
