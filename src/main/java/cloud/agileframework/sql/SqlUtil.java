@@ -1,7 +1,5 @@
 package cloud.agileframework.sql;
 
-import cloud.agileframework.common.util.number.NumberUtil;
-import cloud.agileframework.common.util.other.BooleanUtil;
 import cloud.agileframework.common.util.template.VelocityUtil;
 import com.alibaba.druid.DbType;
 import com.alibaba.druid.sql.PagerUtils;
@@ -14,11 +12,13 @@ import com.alibaba.druid.sql.ast.expr.SQLBetweenExpr;
 import com.alibaba.druid.sql.ast.expr.SQLBinaryOpExpr;
 import com.alibaba.druid.sql.ast.expr.SQLBooleanExpr;
 import com.alibaba.druid.sql.ast.expr.SQLCharExpr;
+import com.alibaba.druid.sql.ast.expr.SQLDateTimeExpr;
 import com.alibaba.druid.sql.ast.expr.SQLIdentifierExpr;
 import com.alibaba.druid.sql.ast.expr.SQLInListExpr;
 import com.alibaba.druid.sql.ast.expr.SQLInSubQueryExpr;
 import com.alibaba.druid.sql.ast.expr.SQLIntegerExpr;
 import com.alibaba.druid.sql.ast.expr.SQLMethodInvokeExpr;
+import com.alibaba.druid.sql.ast.expr.SQLNullExpr;
 import com.alibaba.druid.sql.ast.expr.SQLPropertyExpr;
 import com.alibaba.druid.sql.ast.statement.SQLDeleteStatement;
 import com.alibaba.druid.sql.ast.statement.SQLExprTableSource;
@@ -43,16 +43,17 @@ import com.alibaba.druid.util.JdbcConstants;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import org.apache.commons.lang3.StringUtils;
-import org.apache.commons.lang3.math.NumberUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.Date;
 import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
+import java.util.TimeZone;
 import java.util.function.BiFunction;
 import java.util.stream.Collectors;
 
@@ -200,13 +201,17 @@ public class SqlUtil {
                     queryParams.putAll(resolvedQueryParams);
                 } else {
                     for (String param : queryParams.keySet()) {
-                        String value = String.valueOf(queryParams.get(param));
-                        if (NumberUtils.isParsable(value)) {
-                            sql = sql.replace(param, SQLUtils.toSQLString(new SQLIntegerExpr(NumberUtil.createNumber(value)), dbType));
-                        } else if ("true".equals(value) || "false".equals(value)) {
-                            sql = sql.replace(param, SQLUtils.toSQLString(new SQLBooleanExpr(BooleanUtil.toBoolean(value)), dbType));
+                        Object value = queryParams.get(param);
+                        if (value instanceof Number) {
+                            sql = sql.replace(param, SQLUtils.toSQLString(new SQLIntegerExpr((Number) value), dbType));
+                        } else if (value instanceof Boolean) {
+                            sql = sql.replace(param, SQLUtils.toSQLString(new SQLBooleanExpr((Boolean) value), dbType));
+                        } else if (value instanceof Date) {
+                            sql = sql.replace(param, SQLUtils.toSQLString(new SQLDateTimeExpr((Date) value, TimeZone.getDefault())));
+                        } else if (value == null) {
+                            sql = sql.replace(param, SQLUtils.toSQLString(new SQLNullExpr()));
                         } else {
-                            sql = sql.replace(param, SQLUtils.toSQLString(new SQLCharExpr(value), dbType));
+                            sql = sql.replace(param, SQLUtils.toSQLString(new SQLCharExpr(value.toString()), dbType));
                         }
                     }
                 }
