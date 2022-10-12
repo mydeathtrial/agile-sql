@@ -124,7 +124,7 @@ public class SessionUtil {
         if (ClassUtil.isWrapOrPrimitive(clazz) || Date.class.isAssignableFrom(clazz) || String.class == clazz) {
             return data.stream().flatMap(n -> n.values().stream()).map(a -> (T) ObjectUtil.to(a, new TypeReference<>(clazz))).collect(Collectors.toList());
         }
-        return data.parallelStream().map(a -> (T) ObjectUtil.to(a, new TypeReference<>(clazz))).collect(Collectors.toList());
+        return data.stream().map(a -> (T) ObjectUtil.to(a, new TypeReference<>(clazz))).collect(Collectors.toList());
     }
 
     //--------------------------------三种sql语句------------------------------------------
