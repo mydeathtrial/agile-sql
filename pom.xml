@@ -7,7 +7,7 @@
     <name>agile-sql</name>
     <groupId>cloud.agileframework</groupId>
     <artifactId>agile-sql</artifactId>
-    <version>2.1.0.M63</version>
+    <version>2.1.0.M64</version>
     <description>Cache util for Spring Boot</description>
     <url>https://github.com/mydeathtrial/agile-sql</url>
 
@@ -77,7 +77,7 @@
         <dependency>
             <groupId>cloud.agileframework</groupId>
             <artifactId>common-util</artifactId>
-            <version>2.1.0.M63</version>
+            <version>2.1.0.M64</version>
         </dependency>
 
         <dependency>

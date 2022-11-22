@@ -118,6 +118,9 @@ public class SessionUtil {
      * @return List clazz
      */
     public static <T> List<T> toJavaObjectList(Class<T> clazz, List<Map<String, Object>> data) {
+        if(clazz==null){
+            return (List<T>) data;
+        }
         if (data.isEmpty()) {
             return Lists.newArrayList();
         }
